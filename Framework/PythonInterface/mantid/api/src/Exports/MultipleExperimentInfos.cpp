@@ -18,6 +18,10 @@ void export_MultipleExperimentInfos() {
            (arg("self"), arg("ExperimentalInfo")),
            "Add a new :class:`~mantid.api.ExperimentInfo` to this "
            ":class:`~mantid.api.IMDWorkspace`")
+      .def("addExperimentInfoCopy", &MultipleExperimentInfos::addExperimentInfoCopy,
+           (arg("self"), arg("ExperimentalInfo")),
+           "Add a copy of :class:`~mantid.api.ExperimentInfo` to this "
+           ":class:`~mantid.api.IMDWorkspace`")
       .def("getNumExperimentInfo",
            &MultipleExperimentInfos::getNumExperimentInfo, arg("self"),
            "Return the number of :class:`~mantid.api.ExperimentInfo` objects,")
