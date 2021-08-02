@@ -378,8 +378,7 @@ fi
 # Build step
 ###############################################################################
 if [[ ${DO_BUILD_CODE} == true ]]; then
-    ${CMAKE_EXE} --build . -- -j${BUILD_THREADS:?}
-    ${CMAKE_EXE} --build . --target AllTests -- -j${BUILD_THREADS:?}
+    ${CMAKE_EXE} --build . --target all AllTests -- -j${BUILD_THREADS:?}
 fi
 
 ###############################################################################
