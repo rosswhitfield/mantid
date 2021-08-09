@@ -107,6 +107,17 @@ void UnwrappedSurface::drawSurface(MantidGLWidget *widget, bool picking) const {
   const double dw = fabs((view_right - view_left) / widget_width);
   const double dh = fabs((view_top - view_bottom) / widget_height);
 
+  // fixed aspect ratio
+  if (dh > dw) {
+    const double offset = (dh * widget_width - (view_right - view_left)) / 2;
+    view_left -= offset;
+    view_right += offset;
+  } else {
+    const double offset = (dw * widget_height - (view_top - view_bottom)) / 2;
+    view_bottom -= offset;
+    view_top += offset;
+  }
+
   if (m_startPeakShapes) {
     createPeakShapes(widget->rect());
   }
