@@ -123,7 +123,7 @@ protected slots:
 protected:
   /** @name Implemented protected virtual methods */
   //@{
-  void correctForAspectRatio(MantidGLWidget *widget) const;
+  void correctForAspectRatio() const;
   void drawSurface(MantidGLWidget *widget, bool picking = false) const override;
   void drawSimpleToImage(QImage *image, bool picking = false) const override;
   void changeColorMap() override;
@@ -175,6 +175,9 @@ protected:
 
   /// Zoom stack
   QStack<RectF> m_zoomStack;
+
+  mutable int m_widget_width;
+  mutable int m_widget_height;
 };
 
 } // namespace MantidWidgets

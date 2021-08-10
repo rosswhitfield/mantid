@@ -80,7 +80,7 @@ QString UnwrappedSurface::getDimInfo() const {
 /**
  * Return the physical dimensions of the surface adjusted for aspect ratio
  */
-void UnwrappedSurface::correctForAspectRatio(MantidGLWidget *widget) const {
+void UnwrappedSurface::correctForAspectRatio() const {
   double view_left = m_viewRect.x0();
   double view_right = m_viewRect.x1();
   double view_bottom = m_viewRect.y0();
@@ -88,7 +88,7 @@ void UnwrappedSurface::correctForAspectRatio(MantidGLWidget *widget) const {
 
   double xSize = view_right - view_left;
   double ySize = view_top - view_bottom;
-  double r = ySize * widget->width() / (xSize * widget->height());
+  double r = ySize * m_widget_width / (xSize * m_widget_height);
   if (r < 1.0) {
     // ySize is too small
     ySize /= r;
@@ -111,11 +111,11 @@ void UnwrappedSurface::correctForAspectRatio(MantidGLWidget *widget) const {
  * @param picking :: True if detector is being drawn in the picking mode.
  */
 void UnwrappedSurface::drawSurface(MantidGLWidget *widget, bool picking) const {
-  correctForAspectRatio(widget);
-
   // dimensions of the screen to draw on
-  int widget_width = widget->width();
-  int widget_height = widget->height();
+  m_widget_width = widget->width();
+  m_widget_height = widget->height();
+
+  correctForAspectRatio();
 
   // view rectangle in the OpenGL coordinates
   double view_left = m_viewRect.x0();
@@ -133,15 +133,15 @@ void UnwrappedSurface::drawSurface(MantidGLWidget *widget, bool picking) const {
     view_bottom -= m_height_max / 2;
   }
 
-  const double dw = fabs((view_right - view_left) / widget_width);
-  const double dh = fabs((view_top - view_bottom) / widget_height);
+  const double dw = fabs((view_right - view_left) / m_widget_width);
+  const double dh = fabs((view_top - view_bottom) / m_widget_height);
 
   if (m_startPeakShapes) {
     createPeakShapes(widget->rect());
   }
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-  glViewport(0, 0, widget_width, widget_height);
+  glViewport(0, 0, m_widget_width, m_widget_height);
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   glOrtho(view_left, view_right, view_bottom, view_top, -10, 10);
@@ -526,6 +526,8 @@ void UnwrappedSurface::zoom(const QRectF &area) {
     m_zoomStack.clear();
   }
   m_zoomStack.push(m_viewRect);
+
+  correctForAspectRatio();
 
   double left = area.left();
   double top = area.top();
