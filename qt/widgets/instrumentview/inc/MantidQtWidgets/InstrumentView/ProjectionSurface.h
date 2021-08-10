@@ -349,7 +349,7 @@ protected:
   mutable QImage *m_viewImage; ///< storage for view image
   mutable QImage *m_pickImage; ///< storage for picking image
   QColor m_backgroundColor;    ///< The background colour
-  RectF m_viewRect;            ///< Keeps the physical dimensions of the surface
+  mutable RectF m_viewRect;    ///< Keeps the physical dimensions of the surface
   QRect m_selectRect;
   int m_interactionMode; ///< mode of interaction - index in m_inputControllers
   bool m_isLightingOn;   ///< Lighting on/off flag

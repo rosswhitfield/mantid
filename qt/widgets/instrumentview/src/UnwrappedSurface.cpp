@@ -77,6 +77,33 @@ QString UnwrappedSurface::getDimInfo() const {
       .arg(m_viewRect.y1());
 }
 
+/**
+ * Return the physical dimensions of the surface adjusted for aspect ratio
+ */
+void UnwrappedSurface::correctForAspectRatio(MantidGLWidget *widget) const {
+  double view_left = m_viewRect.x0();
+  double view_right = m_viewRect.x1();
+  double view_bottom = m_viewRect.y0();
+  double view_top = m_viewRect.y1();
+
+  double xSize = view_right - view_left;
+  double ySize = view_top - view_bottom;
+  double r = ySize * widget->width() / (xSize * widget->height());
+  if (r < 1.0) {
+    // ySize is too small
+    ySize /= r;
+    view_bottom = (view_bottom + view_top - ySize) / 2;
+    view_top = view_bottom + ySize;
+  } else {
+    // xSize is too small
+    xSize *= r;
+    view_left = (view_left + view_right - xSize) / 2;
+    view_right = view_left + xSize;
+  }
+
+  m_viewRect = RectF(QPointF(view_left, view_bottom), QPointF(view_right, view_top));
+}
+
 //------------------------------------------------------------------------------
 /**
  * Draw the unwrapped instrument onto the screen
@@ -84,6 +111,8 @@ QString UnwrappedSurface::getDimInfo() const {
  * @param picking :: True if detector is being drawn in the picking mode.
  */
 void UnwrappedSurface::drawSurface(MantidGLWidget *widget, bool picking) const {
+  correctForAspectRatio(widget);
+
   // dimensions of the screen to draw on
   int widget_width = widget->width();
   int widget_height = widget->height();
@@ -106,17 +135,6 @@ void UnwrappedSurface::drawSurface(MantidGLWidget *widget, bool picking) const {
 
   const double dw = fabs((view_right - view_left) / widget_width);
   const double dh = fabs((view_top - view_bottom) / widget_height);
-
-  // fixed aspect ratio
-  if (dh > dw) {
-    const double offset = (dh * widget_width - (view_right - view_left)) / 2;
-    view_left -= offset;
-    view_right += offset;
-  } else {
-    const double offset = (dw * widget_height - (view_top - view_bottom)) / 2;
-    view_bottom -= offset;
-    view_top += offset;
-  }
 
   if (m_startPeakShapes) {
     createPeakShapes(widget->rect());
