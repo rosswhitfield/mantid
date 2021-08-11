@@ -80,11 +80,30 @@ QString UnwrappedSurface::getDimInfo() const {
 /**
  * Return the physical dimensions of the surface adjusted for aspect ratio
  */
-void UnwrappedSurface::correctForAspectRatio() const {
+void UnwrappedSurface::correctForFixedAspectRatio() const {
+  std::cout << "m_u_min=" << m_u_min << '\n';
+  std::cout << "m_u_max=" << m_u_max << '\n';
+  std::cout << "m_v_max=" << m_v_min << '\n';
+  std::cout << "m_v_max=" << m_v_max << '\n';
+  std::cout << "m_height_max=" << m_height_max << '\n';
+  std::cout << "m_width_max=" << m_width_max << '\n';
+
+  if (m_viewImage) {
+    std::cout << "m_viewImage.height=" << m_viewImage->height() << '\n';
+    std::cout << "m_viewImage.width=" << m_viewImage->width() << '\n';
+  }
+  std::cout << "m_widget_height=" << m_widget_height << '\n';
+  std::cout << "m_widget_width=" << m_widget_width << '\n';
+
   double view_left = m_viewRect.x0();
   double view_right = m_viewRect.x1();
   double view_bottom = m_viewRect.y0();
   double view_top = m_viewRect.y1();
+
+  std::cout << "view_left=" << view_left << "\n";
+  std::cout << "view_right=" << view_right << "\n";
+  std::cout << "view_bottom=" << view_bottom << "\n";
+  std::cout << "view_top=" << view_top << "\n";
 
   double xSize = view_right - view_left;
   double ySize = view_top - view_bottom;
@@ -101,6 +120,63 @@ void UnwrappedSurface::correctForAspectRatio() const {
     view_right = view_left + xSize;
   }
 
+  std::cout << "view_left=" << view_left << "\n";
+  std::cout << "view_right=" << view_right << "\n";
+  std::cout << "view_bottom=" << view_bottom << "\n";
+  std::cout << "view_top=" << view_top << "\n";
+
+  m_viewRect = RectF(QPointF(view_left, view_bottom), QPointF(view_right, view_top));
+}
+
+void UnwrappedSurface::adjustForFixedAspectRatio() const {
+  std::cout << "m_viewImage.height=" << m_viewImage->height() << '\n';
+  std::cout << "m_viewImage.width=" << m_viewImage->width() << '\n';
+  std::cout << "m_widget_height=" << m_widget_height << '\n';
+  std::cout << "m_widget_width=" << m_widget_width << '\n';
+  double imageR = static_cast<double>(m_viewImage->width())/static_cast<double>(m_viewImage->height());
+  double widgetR = static_cast<double>(m_widget_width)/static_cast<double>(m_widget_height);
+  double widthR = static_cast<double>(m_widget_width)/static_cast<double>(m_viewImage->width());
+  double heightR = static_cast<double>(m_widget_height)/static_cast<double>(m_viewImage->height());
+  //double R = imageR/widgetR;
+  double R = static_cast<double>(m_viewImage->height())*static_cast<double>(m_widget_width)/(static_cast<double>(m_viewImage->width())*static_cast<double>(m_widget_height));
+  std::cout << "imageR=" << imageR << "\n";
+  std::cout << "widgetR=" << widgetR << "\n";
+  std::cout << "R=" << R << "\n";
+  std::cout << "widthtR=" << widthR << "\n";
+  std::cout << "heightR=" << heightR << "\n";
+
+  double view_left = m_viewRect.x0();
+  double view_right = m_viewRect.x1();
+  double view_bottom = m_viewRect.y0();
+  double view_top = m_viewRect.y1();
+  double xSize = view_right - view_left;
+  double ySize = view_top - view_bottom;
+
+  std::cout << "view_left=" << view_left << "\n";
+  std::cout << "view_right=" << view_right << "\n";
+  std::cout << "view_bottom=" << view_bottom << "\n";
+  std::cout << "view_top=" << view_top << "\n";
+  std::cout << "xSize=" << xSize << "\n";
+  std::cout << "ySize=" << ySize << "\n";
+
+  if (R < 1.0) {
+    ySize /= R;
+    view_bottom = (view_bottom + view_top - ySize) / 2;
+    view_top = view_bottom + ySize;
+  } else {
+    // xSize is too small
+    xSize *= R;
+    view_left = (view_left + view_right - xSize) / 2;
+    view_right = view_left + xSize;
+  }
+
+  std::cout << "xSize=" << xSize << "\n";
+  std::cout << "ySize=" << ySize << "\n";
+  std::cout << "view_left=" << view_left << "\n";
+  std::cout << "view_right=" << view_right << "\n";
+  std::cout << "view_bottom=" << view_bottom << "\n";
+  std::cout << "view_top=" << view_top << "\n";
+
   m_viewRect = RectF(QPointF(view_left, view_bottom), QPointF(view_right, view_top));
 }
 
@@ -115,7 +191,11 @@ void UnwrappedSurface::drawSurface(MantidGLWidget *widget, bool picking) const {
   m_widget_width = widget->width();
   m_widget_height = widget->height();
 
-  correctForAspectRatio();
+  if (m_viewImage) {
+    adjustForFixedAspectRatio();
+  } else {
+    correctForFixedAspectRatio();
+  }
 
   // view rectangle in the OpenGL coordinates
   double view_left = m_viewRect.x0();
@@ -527,7 +607,7 @@ void UnwrappedSurface::zoom(const QRectF &area) {
   }
   m_zoomStack.push(m_viewRect);
 
-  correctForAspectRatio();
+  correctForFixedAspectRatio();
 
   double left = area.left();
   double top = area.top();

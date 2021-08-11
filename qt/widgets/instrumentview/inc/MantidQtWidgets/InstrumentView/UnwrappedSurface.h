@@ -123,7 +123,8 @@ protected slots:
 protected:
   /** @name Implemented protected virtual methods */
   //@{
-  void correctForAspectRatio() const;
+  void correctForFixedAspectRatio() const;
+  void adjustForFixedAspectRatio() const;
   void drawSurface(MantidGLWidget *widget, bool picking = false) const override;
   void drawSimpleToImage(QImage *image, bool picking = false) const override;
   void changeColorMap() override;
