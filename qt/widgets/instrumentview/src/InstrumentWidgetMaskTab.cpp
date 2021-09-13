@@ -78,7 +78,7 @@ InstrumentWidgetMaskTab::InstrumentWidgetMaskTab(InstrumentWidget *instrWidget)
       m_hasMaskToApply(false), m_maskBins(false), m_userEditing(true),
       m_groupManager(nullptr), m_stringManager(nullptr),
       m_doubleManager(nullptr), m_browser(nullptr), m_left(nullptr),
-      m_top(nullptr), m_right(nullptr), m_bottom(nullptr) {
+      m_top(nullptr), m_right(nullptr), m_bottom(nullptr), m_rotation(nullptr) {
 
   // main layout
   QVBoxLayout *layout = new QVBoxLayout(this);
@@ -628,6 +628,7 @@ void InstrumentWidgetMaskTab::shapeChanged() {
   m_doubleManager->setValue(m_top, std::max(rect.y0(), rect.y1()));
   m_doubleManager->setValue(m_right, std::max(rect.x0(), rect.x1()));
   m_doubleManager->setValue(m_bottom, std::min(rect.y0(), rect.y1()));
+ 
   for (QMap<QtProperty *, QString>::iterator it = m_doublePropertyMap.begin();
        it != m_doublePropertyMap.end(); ++it) {
     m_doubleManager->setValue(
@@ -676,6 +677,7 @@ void InstrumentWidgetMaskTab::clearProperties() {
   m_top = nullptr;
   m_right = nullptr;
   m_bottom = nullptr;
+  m_rotation = nullptr;
 }
 
 void InstrumentWidgetMaskTab::setProperties() {
@@ -689,10 +691,12 @@ void InstrumentWidgetMaskTab::setProperties() {
   m_top = addDoubleProperty("top");
   m_right = addDoubleProperty("right");
   m_bottom = addDoubleProperty("bottom");
+  m_rotation = addDoubleProperty("rotation");
   boundingRectGroup->addSubProperty(m_left);
   boundingRectGroup->addSubProperty(m_top);
   boundingRectGroup->addSubProperty(m_right);
   boundingRectGroup->addSubProperty(m_bottom);
+  boundingRectGroup->addSubProperty(m_rotation);
 
   // point properties
   QStringList pointProperties =
@@ -732,7 +736,7 @@ void InstrumentWidgetMaskTab::doubleChanged(QtProperty *prop) {
   if (!m_userEditing)
     return;
 
-  if (prop == m_left || prop == m_top || prop == m_right || prop == m_bottom) {
+  if (prop == m_left || prop == m_top || prop == m_right || prop == m_bottom || prop == m_rotation) {
     m_userEditing = false;
     double x0 = std::min(m_doubleManager->value(m_left),
                          m_doubleManager->value(m_right));
