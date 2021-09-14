@@ -48,8 +48,15 @@ void Shape2D::draw(QPainter &painter) const {
   painter.setPen(QPen(m_color, 0));
   this->drawShape(painter);
   if (m_editing || m_selected) {
+    auto center = m_boundingRect.center();
+    QRectF drawRect = m_boundingRect.translated(-center).toQRectF();
+    painter.save();
+    double rotation = 20;
+    painter.rotate(rotation);
+    painter.translate(QTransform().rotate(-rotation).map(center));
     painter.setPen(QPen(QColor(255, 255, 255, 100), 0));
-    painter.drawRect(m_boundingRect.toQRectF());
+    painter.drawRect(drawRect);
+    auto transform = painter.transform();
     size_t np = NCommonCP;
     double rsize = 2;
     int alpha = 100;
@@ -60,7 +67,7 @@ void Shape2D::draw(QPainter &painter) const {
       alpha = 255;
     }
     for (size_t i = 0; i < np; ++i) {
-      QPointF p = painter.transform().map(getControlPoint(i));
+      QPointF p = painter.transform().map(getControlPoint(i)-center);
       QRectF r(p - QPointF(rsize, rsize), p + QPointF(rsize, rsize));
       painter.save();
       painter.resetTransform();
@@ -70,6 +77,7 @@ void Shape2D::draw(QPainter &painter) const {
       painter.drawRect(r);
       painter.restore();
     }
+    painter.restore();
   }
 }
 
