@@ -152,6 +152,7 @@ private:
   /// Run the LoadMask algorithm to get a MaskWorkspace
   std::shared_ptr<Mantid::API::MatrixWorkspace>
   loadMask(const std::string &fileName);
+  bool isRotationSupported();
 
 protected:
   /// Is it used?

@@ -691,12 +691,16 @@ void InstrumentWidgetMaskTab::setProperties() {
   m_top = addDoubleProperty("top");
   m_right = addDoubleProperty("right");
   m_bottom = addDoubleProperty("bottom");
-  m_rotation = addDoubleProperty("rotation");
+
   boundingRectGroup->addSubProperty(m_left);
   boundingRectGroup->addSubProperty(m_top);
   boundingRectGroup->addSubProperty(m_right);
   boundingRectGroup->addSubProperty(m_bottom);
-  boundingRectGroup->addSubProperty(m_rotation);
+  
+  if(isRotationSupported()) {
+    m_rotation = addDoubleProperty("rotation");
+    boundingRectGroup->addSubProperty(m_rotation);
+  }
 
   // point properties
   QStringList pointProperties =
@@ -723,7 +727,8 @@ void InstrumentWidgetMaskTab::setProperties() {
   }
 
   //rotation property
-  m_doubleManager->setValue(m_rotation, m_instrWidget->getSurface()->getCurrentBoundingRotation());
+  if(isRotationSupported())
+    m_doubleManager->setValue(m_rotation, m_instrWidget->getSurface()->getCurrentBoundingRotation());
 
   shapeChanged();
 }
@@ -752,7 +757,9 @@ void InstrumentWidgetMaskTab::doubleChanged(QtProperty *prop) {
 
     QRectF rect(QPointF(x0, y0), QPointF(x1, y1));
     m_instrWidget->getSurface()->setCurrentBoundingRect(RectF(rect));
-    m_instrWidget->getSurface()->setCurrentBoundingRotation(m_doubleManager->value(m_rotation));
+
+    if(isRotationSupported())
+        m_instrWidget->getSurface()->setCurrentBoundingRotation(m_doubleManager->value(m_rotation));
 
   } else {
     QString name = m_doublePropertyMap[prop];
@@ -1554,6 +1561,11 @@ bool InstrumentWidgetMaskTab::saveMaskViewToProject(
   }
 
   return true;
+}
+
+bool InstrumentWidgetMaskTab::isRotationSupported(){
+  const auto shapeType = m_instrWidget->getSurface()->getCurrentShapeType();
+  return shapeType == "rectangle" || shapeType == "ellipse";
 }
 
 } // namespace MantidWidgets
