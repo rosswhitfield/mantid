@@ -35,6 +35,9 @@ from mantid.simpleapi import (
     Integration,
     GroupWorkspaces,
     RenameWorkspace,
+    ConvertToHistogram,
+    ConvertToEventWorkspace,
+    ReplaceSpecialValues
 )
 from mantid.kernel import (
     StringListValidator,
@@ -191,6 +194,7 @@ class WANDPowderReduction(DataProcessorAlgorithm):
                 XMin=xMin,
                 XMax=xMax,
                 NumberBins=numberBins,
+                PreserveEvents=False,
                 EnableLogging=False,
             )
 
@@ -203,6 +207,10 @@ class WANDPowderReduction(DataProcessorAlgorithm):
                     OutputWorkspace=_wsn,
                     EnableLogging=False,
                 )
+                ReplaceSpecialValues(
+                    InputWorkspace=_wsn,
+                    OutputWorkspace=_wsn,
+                    NaNValue=0)
             else:
                 _ws_cal_resampled = None
 
@@ -341,6 +349,18 @@ class WANDPowderReduction(DataProcessorAlgorithm):
             EnableLogging=False,
         )
 
+        ConvertToHistogram(
+            InputWorkspace=workspace_out,
+            OutputWorkspace=workspace_out,
+            EnableLogging=False,
+        )
+
+        ConvertToEventWorkspace(
+            InputWorkspace=workspace_out,
+            OutputWorkspace=workspace_out,
+            EnableLogging=False,
+        )
+
         return workspace_out
 
     def _to_spectrum_axis_resample(self, workspace_in, workspace_out, mask, instrument_donor, x_min, x_max):
@@ -355,6 +375,7 @@ class WANDPowderReduction(DataProcessorAlgorithm):
             XMin=x_min,
             XMax=x_max,
             NumberBins=number_bins,
+            PreserveEvents=False,
             EnableLogging=False,
         )
 
@@ -462,6 +483,10 @@ class WANDPowderReduction(DataProcessorAlgorithm):
                 OutputWorkspace=outname,
                 EnableLogging=False,
             )
+            ReplaceSpecialValues(
+                InputWorkspace=outname,
+                OutputWorkspace=outname,
+                NaNValue=0)
 
         cal = self.getProperty("CalibrationWorkspace").valueAsStr
         Scale(
