@@ -151,12 +151,10 @@ void FindUBUsingIndexedPeaks::exec() {
         if (run_indexed < 3)
           continue;
 
-        std::vector<double> rsigabc(7);
-        IndexingUtils::Optimize_6dUB(UB, modUB, run_hkl_vectors, run_mnp_vectors, ModDim, run_q_vectors, rsigabc, sigq);
         OrientedLattice run_lattice;
         run_lattice.setUB(UB);
         run_lattice.setModUB(modUB);
-        run_lattice.setError(rsigabc[0], rsigabc[1], rsigabc[2], rsigabc[3], rsigabc[4], rsigabc[5]);
+        run_lattice.setError(sigabc[0], sigabc[1], sigabc[2], sigabc[3], sigabc[4], sigabc[5]);
         g_log.notice() << run_lattice << "\n";
 
         double average_error = 0.;
