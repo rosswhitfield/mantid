@@ -151,16 +151,20 @@ void FindUBUsingIndexedPeaks::exec() {
         if (run_indexed < 3)
           continue;
 
+        Matrix<double> rUB(3, 3, false);
+        Matrix<double> rmodUB(3, 3, false);
         std::vector<double> rsigabc(7);
-        IndexingUtils::Optimize_6dUB(UB, modUB, run_hkl_vectors, run_mnp_vectors, ModDim, run_q_vectors, rsigabc, sigq);
+        std::vector<double> rsigq(3);
+        IndexingUtils::Optimize_6dUB(rUB, rmodUB, run_hkl_vectors, run_mnp_vectors, ModDim, run_q_vectors, rsigabc,
+                                     rsigq);
         OrientedLattice run_lattice;
-        run_lattice.setUB(UB);
-        run_lattice.setModUB(modUB);
+        run_lattice.setUB(rUB);
+        run_lattice.setModUB(rmodUB);
         run_lattice.setError(rsigabc[0], rsigabc[1], rsigabc[2], rsigabc[3], rsigabc[4], rsigabc[5]);
         g_log.notice() << run_lattice << "\n";
 
         double average_error = 0.;
-        IndexingUtils::CalculateMillerIndices(UB, run_q_vectors, 1.0, run_fhkl_vectors, average_error);
+        IndexingUtils::CalculateMillerIndices(rUB, run_q_vectors, 1.0, run_fhkl_vectors, average_error);
         for (size_t i = 0; i < run_indexed; i++) {
           if (IndexingUtils::ValidIndex(run_fhkl_vectors[i], tolerance))
             continue;
