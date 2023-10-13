@@ -137,22 +137,24 @@ bool isControlValue(const char &c, const std::string &propName, Kernel::Logger &
  * @returns A pointer to a new property containing the time series
  */
 std::unique_ptr<Kernel::Property> createTimeSeries(::NeXus::File &file, const std::string &propName,
-                                                   const std::string &freqStart, Kernel::Logger &log) {
-  file.openData("time");
+                                                   const std::string &absolute_entry_name, const std::string &freqStart,
+                                                   const Kernel::NexusHDF5Descriptor &descriptor, Kernel::Logger &log) {
   //----- Start time is an ISO8601 string date and time. ------
-  std::string start;
-  try {
-    file.getAttr("start", start);
-  } catch (::NeXus::Exception &) {
-    // Some logs have "offset" instead of start
-    try {
-      file.getAttr("offset", start);
-    } catch (::NeXus::Exception &) {
-      log.warning() << "Log entry has no start time indicated.\n";
-      file.closeData();
-      throw;
-    }
+  const std::string timeEntry = absolute_entry_name + "/time";
+  std::string startName;
+  if (descriptor.isEntry(timeEntry, "start"))
+    startName = "start";
+  else if (descriptor.isEntry(timeEntry, "offset"))
+    startName = "offset";
+  else {
+    throw ::NeXus::Exception("Log entry has no start time indicated");
   }
+
+  file.openData("time");
+  std::string start;
+
+  file.getAttr(startName, start);
+
   if (start == "No Time") {
     start = freqStart;
   }
@@ -189,13 +191,13 @@ std::unique_ptr<Kernel::Property> createTimeSeries(::NeXus::File &file, const st
   // Now the values: Could be a string, int or double
   file.openData("value");
   // Get the units of the property
+  const std::string valueEntry = absolute_entry_name + "/value";
+
   std::string value_units;
-  try {
+  if (descriptor.isEntry(valueEntry, "units"))
     file.getAttr("units", value_units);
-  } catch (::NeXus::Exception &) {
-    // Ignore missing units field.
-    value_units = "";
-  }
+  else
+    value_units = ""; // Ignore missing units field.
 
   // Now the actual data
   ::NeXus::Info info = file.getInfo();
@@ -857,7 +859,8 @@ void LoadNexusLogs::loadNXLog(::NeXus::File &file, const std::string &absolute_e
 
   const std::string entry_name = absolute_entry_name.substr(absolute_entry_name.find_last_of("/") + 1);
   g_log.debug() << "processing " << entry_name << ":" << entry_class << "\n";
-  file.openGroup(entry_name, entry_class);
+  const std::shared_ptr<NexusHDF5Descriptor> descriptor = getFileInfo();
+
   // Validate the NX log class.
   // Just verify that time and value entries exist
   const std::string timeEntry = absolute_entry_name + "/time";
@@ -887,15 +890,16 @@ void LoadNexusLogs::loadNXLog(::NeXus::File &file, const std::string &absolute_e
 
   if (!foundTime || !foundValue) {
     g_log.warning() << "Invalid NXlog entry " << entry_name << " found. Did not contain 'value' and 'time'.\n";
-    file.closeGroup();
     return;
   }
+
+  file.openGroup(entry_name, entry_class);
 
   // whether to overwrite logs on workspace
   bool overwritelogs = this->getProperty("OverwriteLogs");
   try {
     if (overwritelogs || !(workspace->run().hasProperty(entry_name))) {
-      auto logValue = createTimeSeries(file, entry_name, freqStart, g_log);
+      auto logValue = createTimeSeries(file, entry_name, absolute_entry_name, freqStart, *descriptor, g_log);
       // Create (possibly) a boolean time series, companion to time series `entry_name`
       if (foundValidator) {
         auto validityLogValue = createTimeSeriesValidityFilter(file, *logValue, g_log);
@@ -921,6 +925,7 @@ void LoadNexusLogs::loadSELog(::NeXus::File &file, const std::string &absolute_e
                               const std::shared_ptr<API::MatrixWorkspace> &workspace) const {
   // Open the entry
   const std::string entry_name = absolute_entry_name.substr(absolute_entry_name.find_last_of("/") + 1);
+  const std::shared_ptr<NexusHDF5Descriptor> descriptor = getFileInfo();
 
   file.openGroup(entry_name, "IXseblock");
   std::string propName = entry_name;
@@ -936,7 +941,7 @@ void LoadNexusLogs::loadSELog(::NeXus::File &file, const std::string &absolute_e
   bool foundValue = false;
   bool foundValueLog = false;
 
-  const std::map<std::string, std::set<std::string>> &allEntries = getFileInfo()->getAllEntries();
+  const std::map<std::string, std::set<std::string>> &allEntries = descriptor->getAllEntries();
 
   for (auto it = allEntries.rbegin(); it != allEntries.rend(); ++it) {
     const std::set<std::string> &entriesSet = it->second;
@@ -960,7 +965,7 @@ void LoadNexusLogs::loadSELog(::NeXus::File &file, const std::string &absolute_e
         throw;
       }
 
-      logValue = createTimeSeries(file, propName, freqStart, g_log);
+      logValue = createTimeSeries(file, propName, valueLogEntry, freqStart, *descriptor, g_log);
       // Create (possibly) a boolean time series, companion to time series `logValue`.
       auto validityLogValue = createTimeSeriesValidityFilter(file, *logValue, g_log);
       if (validityLogValue) {

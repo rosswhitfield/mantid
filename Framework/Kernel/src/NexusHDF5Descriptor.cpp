@@ -159,6 +159,15 @@ void getGroup(hid_t groupID, std::map<std::string, std::set<std::string>> &allEn
       const std::string memberNameStr(memberName, memberNameLength);
       const std::string absoluteEntryName = groupNameStr + "/" + memberNameStr;
       allEntries["SDS"].insert(absoluteEntryName);
+
+      if (H5Aexists_by_name(groupID, memberNameStr.c_str(), "start", H5P_DEFAULT))
+        allEntries["start"].insert(absoluteEntryName);
+
+      if (H5Aexists_by_name(groupID, memberNameStr.c_str(), "offset", H5P_DEFAULT))
+        allEntries["offset"].insert(absoluteEntryName);
+
+      if (H5Aexists_by_name(groupID, memberNameStr.c_str(), "units", H5P_DEFAULT))
+        allEntries["units"].insert(absoluteEntryName);
     }
   }
 }
