@@ -383,7 +383,7 @@ pipeline {
         checkoutSource("${GIT_SHA}")
         // Standalone packages next
         sh 'rm -fr ${WORKSPACE}/standalone-packages'
-        copyArtifacts filter: '*.exe, *.dmg, *.tar.xz',
+        copyArtifacts filter: '*.exe, *.dmg, *.tar.xz, **/conda-bld/**/*.tar.bz2',
           fingerprintArtifacts: true,
           projectName: '${JOB_NAME}',
           selector: specific('${BUILD_NUMBER}'),
