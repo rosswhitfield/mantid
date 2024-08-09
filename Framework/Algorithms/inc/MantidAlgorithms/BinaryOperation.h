@@ -190,6 +190,10 @@ protected:
   /// Cache for RHS workspace's blocksize
   size_t m_rhsBlocksize;
 
+  /// Cache for LHS workspace's blocksize
+  size_t m_lhsRagged;
+  /// Cache for RHS workspace's blocksize
+  size_t m_rhsRagged;
   //------ Requirements -----------
 
   /// matchXSize set to true if the X sizes of histograms must match.

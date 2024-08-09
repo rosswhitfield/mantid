@@ -134,8 +134,20 @@ void BinaryOperation::exec() {
   m_rhs = getProperty(inputPropName2());
   m_AllowDifferentNumberSpectra = getProperty("AllowDifferentNumberSpectra");
 
-  m_lhsBlocksize = m_lhs->blocksize();
-  m_rhsBlocksize = m_rhs->blocksize();
+  try {
+    m_lhsBlocksize = m_lhs->blocksize();
+    m_lhsRagged = false;
+  } catch (std::length_error &) {
+    m_lhsRagged = true;
+  }
+  try {
+    m_rhsBlocksize = m_rhs->blocksize();
+    m_rhsRagged = false;
+  } catch (std::length_error &) {
+    m_rhsRagged = true;
+  }
+
+  g_log.error() << "lhs=" << m_lhsBlocksize << " rhs=" << m_rhsBlocksize << "\n";
 
   // Special handling for 1-WS and 1/WS.
   if (this->handleSpecialDivideMinus())
@@ -167,6 +179,7 @@ void BinaryOperation::exec() {
     std::swap(m_lhs, m_rhs);
     std::swap(m_elhs, m_erhs);
     std::swap(m_lhsBlocksize, m_rhsBlocksize);
+    std::swap(m_lhsRagged, m_rhsRagged);
   }
 
   // Check that the input workspaces are compatible
@@ -228,6 +241,8 @@ void BinaryOperation::exec() {
       auto specialRHS = dynamic_cast<const SpecialWorkspace2D *>(m_rhs.get());
       if (specialLHS && specialRHS) {
         m_out = create<SpecialWorkspace2D>(*specialLHS);
+      } else if (m_lhsRagged) {
+        m_out = createRagged<HistoWorkspace>(*m_lhs);
       } else {
         m_out = create<HistoWorkspace>(*m_lhs);
       }
@@ -249,18 +264,23 @@ void BinaryOperation::exec() {
   // Single value workspace on the right : if it is an EventWorkspace with 1
   // spectrum, 1 bin, it is treated as a scalar
   if ((m_rhs->size() == 1) && !m_do2D_even_for_SingleColumn_on_rhs) {
+    g_log.error() << "doSingleValue" << std::endl;
     doSingleValue();                            // m_lhs,m_rhs,m_out
   } else if (m_rhs->getNumberHistograms() == 1) // Single spectrum on rhs
   {
+    g_log.error() << "doSingleSpectrum" << std::endl;
     doSingleSpectrum();
   }
   // Single column on rhs; if the RHS is an event workspace with one bin, it is
   // treated as a scalar.
   else if ((m_rhsBlocksize == 1) && !m_do2D_even_for_SingleColumn_on_rhs) {
+    g_log.error() << "doSingleColumn" << std::endl;
+
     doSingleColumn();
   } else // The two are both 2D and should be the same size (except if LHS is an
          // event workspace)
   {
+    g_log.error() << "do2D" << std::endl;
     bool mismatchedSpectra =
         (m_AllowDifferentNumberSpectra && (m_rhs->getNumberHistograms() != m_lhs->getNumberHistograms()));
     do2D(mismatchedSpectra);
