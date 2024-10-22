@@ -45,12 +45,14 @@ namespace Mantid::DataHandling {
 LoadBankFromDiskTask::LoadBankFromDiskTask(DefaultEventLoader &loader, std::string entry_name, std::string entry_type,
                                            const std::size_t numEvents, const bool oldNeXusFileNames,
                                            API::Progress *prog, std::shared_ptr<std::mutex> ioMutex,
-                                           Kernel::ThreadScheduler &scheduler, std::vector<int> framePeriodNumbers)
+                                           Kernel::ThreadScheduler &scheduler, std::vector<int> framePeriodNumbers,
+                                           size_t split_into, size_t split_number, std::shared_ptr<std::mutex> wsMutex)
     : m_loader(loader), entry_name(std::move(entry_name)), entry_type(std::move(entry_type)), prog(prog),
       scheduler(scheduler), m_loadError(false), m_have_weight(false),
-      m_framePeriodNumbers(std::move(framePeriodNumbers)) {
+      m_framePeriodNumbers(std::move(framePeriodNumbers)), m_split_into(split_into), m_split_number(split_number),
+      m_wsMutex(wsMutex) {
   setMutex(ioMutex);
-  m_cost = static_cast<double>(numEvents);
+  m_cost = static_cast<double>(numEvents / m_split_into);
 
   // some field names changed over time
   m_timeOfFlightFieldName = oldNeXusFileNames ? "event_time_of_flight" : "event_time_offset";
@@ -65,6 +67,7 @@ LoadBankFromDiskTask::LoadBankFromDiskTask(DefaultEventLoader &loader, std::stri
  * thisBankPulseTimes to the right pointer.
  * */
 void LoadBankFromDiskTask::loadPulseTimes(::NeXus::File &file) {
+  Mantid::Kernel::Timer timer;
   try {
     // First, get info about the event_time_zero field in this bank
     file.openData("event_time_zero");
@@ -101,6 +104,7 @@ void LoadBankFromDiskTask::loadPulseTimes(::NeXus::File &file) {
   // Not found? Need to load and add it
   thisBankPulseTimes = std::make_shared<BankPulseTimes>(boost::ref(file), m_framePeriodNumbers);
   m_loader.m_bankPulseTimes.emplace_back(thisBankPulseTimes);
+  m_loader.alg->getLogger().debug() << "Loaded pulse times for " << entry_name << " in " << timer << " seconds.\n";
 }
 
 /** Load the event_index field
@@ -113,6 +117,7 @@ std::unique_ptr<std::vector<uint64_t>> LoadBankFromDiskTask::loadEventIndex(::Ne
   // the event list for that pulse) as a uint64 vector.
   // The Nexus standard does not specify if this is to be 32-bit or 64-bit
   // integers, so we use the NeXusIOHelper to do the conversion on the fly.
+  Mantid::Kernel::Timer timer;
   auto event_index = std::make_unique<std::vector<uint64_t>>(
       Mantid::NeXus::NeXusIOHelper::readNexusVector<uint64_t>(file, "event_index"));
 
@@ -124,7 +129,7 @@ std::unique_ptr<std::vector<uint64_t>> LoadBankFromDiskTask::loadEventIndex(::Ne
       m_loader.alg->getLogger().debug() << "Bank " << entry_name << " is empty.\n";
     }
   }
-
+  m_loader.alg->getLogger().debug() << "Loaded event_index for " << entry_name << " in " << timer << " seconds.\n";
   return event_index;
 }
 
@@ -158,6 +163,14 @@ void LoadBankFromDiskTask::prepareEventId(::NeXus::File &file, int64_t &start_ev
       stop_event = start_event + static_cast<int64_t>(m_loader.eventsPerChunk);
   }
 
+  if (m_split_into > 1) {
+    // Split the data into multiple parts
+    start_event = dim0 * m_split_number / m_split_into;
+    if (dim0 * (m_split_number + 1) / m_split_into < stop_event) {
+      stop_event = dim0 * (m_split_number + 1) / m_split_into;
+    }
+  }
+
   // Make sure it is within range
   if (stop_event > dim0)
     stop_event = dim0;
@@ -171,6 +184,7 @@ void LoadBankFromDiskTask::prepareEventId(::NeXus::File &file, int64_t &start_ev
  * @returns A new array containing the event Ids for this bank
  */
 std::unique_ptr<std::vector<uint32_t>> LoadBankFromDiskTask::loadEventId(::NeXus::File &file) {
+  Mantid::Kernel::Timer timer;
   // This is the data size
   ::NeXus::Info id_info = file.getInfo();
   const int64_t dim0 = recalculateDataSize(id_info.dims[0]);
@@ -217,6 +231,7 @@ std::unique_ptr<std::vector<uint32_t>> LoadBankFromDiskTask::loadEventId(::NeXus
     if (m_max_id > static_cast<uint32_t>(m_loader.eventid_max))
       m_max_id = static_cast<uint32_t>(m_loader.eventid_max);
   }
+  m_loader.alg->getLogger().debug() << "Loaded event_id for " << entry_name << " in " << timer << " seconds.\n";
   return event_id;
 }
 
@@ -225,6 +240,7 @@ std::unique_ptr<std::vector<uint32_t>> LoadBankFromDiskTask::loadEventId(::NeXus
  * @returns A new array containing the time of flights for this bank
  */
 std::unique_ptr<std::vector<float>> LoadBankFromDiskTask::loadTof(::NeXus::File &file) {
+  Mantid::Kernel::Timer timer;
   // Get the list of event_time_of_flight's
   file.openData(m_timeOfFlightFieldName);
 
@@ -261,6 +277,8 @@ std::unique_ptr<std::vector<float>> LoadBankFromDiskTask::loadTof(::NeXus::File 
   if (tof_unit != MICROSEC)
     Kernel::Units::timeConversionVector(*event_time_of_flight, tof_unit, MICROSEC);
 
+  m_loader.alg->getLogger().debug() << "Loaded event_time_of_flight for " << entry_name << " in " << timer
+                                    << " seconds.\n";
   return event_time_of_flight;
 }
 
@@ -461,7 +479,7 @@ void LoadBankFromDiskTask::run() {
 
   // No error? Launch a new task to process that data.
   const auto numEvents = static_cast<size_t>(m_loadSize[0]);
-  const auto startAt = static_cast<size_t>(m_loadStart[0]);
+  const auto startAt = 0;
 
   // convert things to shared_arrays to share between tasks
   std::shared_ptr<std::vector<uint32_t>> event_id_shrd(std::move(event_id));
@@ -531,7 +549,7 @@ void LoadBankFromDiskTask::run() {
     // create all events using traditional method
     std::shared_ptr<Task> newTask1 = std::make_shared<ProcessBankData>(
         m_loader, entry_name, prog, event_id_shrd, event_time_of_flight_shrd, numEvents, startAt, event_index_shrd,
-        thisBankPulseTimes, m_have_weight, event_weight_shrd, m_min_id, mid_id);
+        thisBankPulseTimes, m_have_weight, event_weight_shrd, m_min_id, mid_id, m_split_into, m_split_number);
     scheduler.push(newTask1);
     if (m_loader.splitProcessing && (mid_id < m_max_id)) {
       std::shared_ptr<Task> newTask2 = std::make_shared<ProcessBankData>(
@@ -543,7 +561,8 @@ void LoadBankFromDiskTask::run() {
 
 #ifndef _WIN32
   if (m_loader.alg->getLogger().isDebug())
-    m_loader.alg->getLogger().debug() << "Time to LoadBankFromDisk " << entry_name << " " << timer << "\n";
+    m_loader.alg->getLogger().debug() << "Time to LoadBankFromDisk (" << m_split_number << "/" << m_split_into << ") "
+                                      << entry_name << " " << timer << "\n";
 #endif
 }
 

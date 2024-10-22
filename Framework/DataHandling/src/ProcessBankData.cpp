@@ -22,13 +22,15 @@ ProcessBankData::ProcessBankData(DefaultEventLoader &m_loader, const std::string
                                  size_t startAt, std::shared_ptr<std::vector<uint64_t>> event_index,
                                  std::shared_ptr<BankPulseTimes> thisBankPulseTimes, bool have_weight,
                                  std::shared_ptr<std::vector<float>> event_weight, detid_t min_event_id,
-                                 detid_t max_event_id)
+                                 detid_t max_event_id, size_t split_into, size_t split_number,
+                                 std::shared_ptr<std::mutex> wsMutex)
     : Task(), m_loader(m_loader), entry_name(std::move(entry_name)),
       pixelID_to_wi_vector(m_loader.pixelID_to_wi_vector), pixelID_to_wi_offset(m_loader.pixelID_to_wi_offset),
       prog(prog), event_detid(std::move(event_id)), event_time_of_flight(std::move(event_time_of_flight)),
       numEvents(numEvents), startAt(startAt), event_index(std::move(event_index)),
       thisBankPulseTimes(std::move(thisBankPulseTimes)), have_weight(have_weight),
-      event_weight(std::move(event_weight)), m_min_detid(min_event_id), m_max_detid(max_event_id) {
+      event_weight(std::move(event_weight)), m_min_detid(min_event_id), m_max_detid(max_event_id),
+      m_split_into(split_into), m_split_number(split_number), m_wsMutex(wsMutex) {
   // Cost is approximately proportional to the number of events to process.
   m_cost = static_cast<double>(numEvents);
 
@@ -143,12 +145,15 @@ void ProcessBankData::run() {
         // this is fancy for check if value is in range
         if ((NO_TOF_FILTERING) || ((tof - TOF_MIN) * (tof - TOF_MAX) <= 0.)) {
           // Handle simulated data if present
+          std::shared_ptr<std::mutex> mutex = m_loader.eventVectorsMutexes[periodIndex][detId];
+
           if (have_weight) {
             auto *eventVector = m_loader.weightedEventVectors[periodIndex][detId];
             // NULL eventVector indicates a bad spectrum lookup
             if (eventVector) {
               const auto weight = static_cast<double>((*event_weight)[eventIndex]);
               const double errorSq = weight * weight;
+              // std::lock_guard<std::mutex> lock(*mutex);
               eventVector->emplace_back(tof, pulsetime, weight, errorSq);
             } else {
               ++my_discarded_events;
@@ -158,7 +163,12 @@ void ProcessBankData::run() {
             auto *eventVector = m_loader.eventVectors[periodIndex][detId];
             // NULL eventVector indicates a bad spectrum lookup
             if (eventVector) {
+              // std::lock_guard<std::mutex> lock(*mutex);
+              // std::lock_guard<std::mutex> lock(*m_wsMutex);
+              // std::lock_guard<std::mutex> _lock(m_loader.alg->m_wsMutex);
+              mutex->lock();
               eventVector->emplace_back(std::move(tof), pulsetime);
+              mutex->unlock();
             } else {
               ++my_discarded_events;
             }
@@ -233,7 +243,8 @@ void ProcessBankData::run() {
 
 #ifndef _WIN32
   if (alg->getLogger().isDebug())
-    alg->getLogger().debug() << "Time to ProcessBankData " << entry_name << " " << timer << "\n";
+    alg->getLogger().debug() << "Time to ProcessBankData (" << m_split_number << "/" << m_split_into << ") "
+                             << entry_name << " " << timer << "\n";
 #endif
 } // END-OF-RUN()
 

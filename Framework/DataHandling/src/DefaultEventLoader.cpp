@@ -35,11 +35,16 @@ void DefaultEventLoader::load(LoadEventNexus *alg, EventWorkspaceCollection &ws,
     numProg += bankNames.size() * 3; // 3 = second proc task
   auto prog = std::make_unique<API::Progress>(loader.alg, 0.3, 1.0, numProg);
 
+  const size_t split_into = 2;
+
   for (size_t i = bankRange.first; i < bankRange.second; i++) {
-    if (bankNumEvents[i] > 0)
-      pool.schedule(std::make_shared<LoadBankFromDiskTask>(loader, bankNames[i], classType, bankNumEvents[i],
-                                                           oldNeXusFileNames, prog.get(), diskIOMutex, *scheduler,
-                                                           periodLog));
+    if (bankNumEvents[i] > 0) {
+      std::shared_ptr<std::mutex> wsMutex = std::make_shared<std::mutex>();
+      for (size_t split_number = 0; split_number < split_into; split_number++)
+        pool.schedule(std::make_shared<LoadBankFromDiskTask>(loader, bankNames[i], classType, bankNumEvents[i],
+                                                             oldNeXusFileNames, prog.get(), diskIOMutex, *scheduler,
+                                                             periodLog, split_into, split_number, wsMutex));
+    }
   }
   // Start and end all threads
   pool.joinAll();
@@ -83,6 +88,8 @@ DefaultEventLoader::DefaultEventLoader(LoadEventNexus *alg, EventWorkspaceCollec
   // split banks up if the number of cores is more than twice the number of
   // banks
   splitProcessing = bool(numBanks * 2 < ThreadPool::getNumPhysicalCores());
+  splitProcessing = false;
+  alg->getLogger().debug() << "Splitting processing: " << std::boolalpha << splitProcessing << "\n";
 }
 
 std::pair<size_t, size_t> DefaultEventLoader::setupChunking(std::vector<std::string> &bankNames,

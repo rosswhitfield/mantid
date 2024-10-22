@@ -46,7 +46,8 @@ public:
                   std::shared_ptr<std::vector<float>> event_time_of_flight, size_t numEvents, size_t startAt,
                   std::shared_ptr<std::vector<uint64_t>> event_index,
                   std::shared_ptr<BankPulseTimes> thisBankPulseTimes, bool have_weight,
-                  std::shared_ptr<std::vector<float>> event_weight, detid_t min_event_id, detid_t max_event_id);
+                  std::shared_ptr<std::vector<float>> event_weight, detid_t min_event_id, detid_t max_event_id,
+                  size_t split_into = 1, size_t split_number = 0, std::shared_ptr<std::mutex> wsMutex = nullptr);
 
   void run() override;
 
@@ -85,6 +86,12 @@ private:
   detid_t m_min_detid;
   /// Maximum pixel id (inclusive)
   detid_t m_max_detid;
+  /// Split the processing into this many parts
+  size_t m_split_into;
+  /// Split number
+  size_t m_split_number;
+  /// Mutex for the workspace
+  std::shared_ptr<std::mutex> m_wsMutex;
 }; // ENDDEF-CLASS ProcessBankData
 } // namespace DataHandling
 } // namespace Mantid

@@ -167,6 +167,7 @@ public:
 
   /// Mutex protecting tof limits
   std::mutex m_tofMutex;
+  std::mutex m_wsMutex;
 
   /// Limits found to tof
   double longest_tof;

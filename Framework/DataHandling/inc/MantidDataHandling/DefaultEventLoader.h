@@ -69,6 +69,8 @@ public:
   /// event list.
   std::vector<std::vector<std::vector<Mantid::DataObjects::WeightedEventNoTime> *>> weightedNoTimeEventVectors;
 
+  std::vector<std::vector<std::shared_ptr<std::mutex>>> eventVectorsMutexes;
+
   /// Vector where (index = pixel ID+pixelID_to_wi_offset), value = workspace
   /// index)
   std::vector<size_t> pixelID_to_wi_vector;
@@ -90,6 +92,7 @@ private:
  */
 template <class T> void DefaultEventLoader::makeMapToEventLists(std::vector<std::vector<T>> &vectors) {
   vectors.resize(m_ws.nPeriods());
+  eventVectorsMutexes.resize(m_ws.nPeriods());
   if (event_id_is_spec) {
     // Find max spectrum no
     const auto *ax1 = m_ws.getAxis(1);
@@ -108,11 +111,16 @@ template <class T> void DefaultEventLoader::makeMapToEventLists(std::vector<std:
     eventid_max = maxSpecNo;
     for (size_t i = 0; i < vectors.size(); ++i) {
       vectors[i].resize(maxSpecNo + 1, nullptr);
+      // eventVectorsMutexes[i].resize(maxSpecNo + 1);
+      for (size_t j = 0; j < maxSpecNo + 1; j++) {
+        eventVectorsMutexes[i].emplace_back(new std::mutex());
+      }
     }
     for (size_t period = 0; period < m_ws.nPeriods(); ++period) {
       for (size_t i = 0; i < m_ws.getNumberHistograms(); ++i) {
         const auto &spec = m_ws.getSpectrum(i);
         getEventsFrom(m_ws.getSpectrum(i, period), vectors[period][spec.getSpectrumNo()]);
+        // eventVectorsMutexes[period][spec.getSpectrumNo()] = new std::mutex();
       }
     }
   } else {
@@ -124,6 +132,10 @@ template <class T> void DefaultEventLoader::makeMapToEventLists(std::vector<std:
     // Set the value to NULL by default
     for (size_t i = 0; i < vectors.size(); ++i) {
       vectors[i].resize(eventid_max + 1, nullptr);
+      // eventVectorsMutexes[i].resize(eventid_max + 1);
+      for (size_t j = 0; j < eventid_max + 1; j++) {
+        eventVectorsMutexes[i].emplace_back(new std::mutex());
+      }
     }
 
     for (size_t j = 0; j < pixelID_to_wi_vector.size(); j++) {
@@ -132,6 +144,7 @@ template <class T> void DefaultEventLoader::makeMapToEventLists(std::vector<std:
       if (wi < m_ws.getNumberHistograms()) {
         for (size_t period = 0; period < m_ws.nPeriods(); ++period) {
           getEventsFrom(m_ws.getSpectrum(wi, period), vectors[period][j - pixelID_to_wi_offset]);
+          // eventVectorsMutexes[period][j - pixelID_to_wi_offset] = new std::mutex();
         }
       }
     }
