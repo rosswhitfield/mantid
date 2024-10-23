@@ -31,8 +31,7 @@ public:
   LoadBankFromDiskTask(DefaultEventLoader &loader, std::string entry_name, std::string entry_type,
                        const std::size_t numEvents, const bool oldNeXusFileNames, API::Progress *prog,
                        std::shared_ptr<std::mutex> ioMutex, Kernel::ThreadScheduler &scheduler,
-                       std::vector<int> framePeriodNumbers, size_t split_into = 1, size_t split_number = 0,
-                       std::shared_ptr<std::mutex> wsMutex = nullptr);
+                       std::vector<int> framePeriodNumbers, size_t split_into = 1, size_t split_number = 0);
 
   void run() override;
 
@@ -79,8 +78,6 @@ private:
   size_t m_split_into;
   /// Split number
   size_t m_split_number;
-  /// Mutex for the workspace
-  std::shared_ptr<std::mutex> m_wsMutex;
 }; // END-DEF-CLASS LoadBankFromDiskTask
 
 } // namespace DataHandling

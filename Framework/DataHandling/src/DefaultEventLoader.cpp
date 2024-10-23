@@ -39,11 +39,10 @@ void DefaultEventLoader::load(LoadEventNexus *alg, EventWorkspaceCollection &ws,
 
   for (size_t i = bankRange.first; i < bankRange.second; i++) {
     if (bankNumEvents[i] > 0) {
-      std::shared_ptr<std::mutex> wsMutex = std::make_shared<std::mutex>();
       for (size_t split_number = 0; split_number < split_into; split_number++)
         pool.schedule(std::make_shared<LoadBankFromDiskTask>(loader, bankNames[i], classType, bankNumEvents[i],
                                                              oldNeXusFileNames, prog.get(), diskIOMutex, *scheduler,
-                                                             periodLog, split_into, split_number, wsMutex));
+                                                             periodLog, split_into, split_number));
     }
   }
   // Start and end all threads

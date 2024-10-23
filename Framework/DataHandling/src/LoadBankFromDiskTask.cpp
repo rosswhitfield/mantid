@@ -46,11 +46,10 @@ LoadBankFromDiskTask::LoadBankFromDiskTask(DefaultEventLoader &loader, std::stri
                                            const std::size_t numEvents, const bool oldNeXusFileNames,
                                            API::Progress *prog, std::shared_ptr<std::mutex> ioMutex,
                                            Kernel::ThreadScheduler &scheduler, std::vector<int> framePeriodNumbers,
-                                           size_t split_into, size_t split_number, std::shared_ptr<std::mutex> wsMutex)
+                                           size_t split_into, size_t split_number)
     : m_loader(loader), entry_name(std::move(entry_name)), entry_type(std::move(entry_type)), prog(prog),
       scheduler(scheduler), m_loadError(false), m_have_weight(false),
-      m_framePeriodNumbers(std::move(framePeriodNumbers)), m_split_into(split_into), m_split_number(split_number),
-      m_wsMutex(wsMutex) {
+      m_framePeriodNumbers(std::move(framePeriodNumbers)), m_split_into(split_into), m_split_number(split_number) {
   setMutex(ioMutex);
   m_cost = static_cast<double>(numEvents / m_split_into);
 

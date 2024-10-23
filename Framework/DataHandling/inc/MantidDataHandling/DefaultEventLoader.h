@@ -111,7 +111,6 @@ template <class T> void DefaultEventLoader::makeMapToEventLists(std::vector<std:
     eventid_max = maxSpecNo;
     for (size_t i = 0; i < vectors.size(); ++i) {
       vectors[i].resize(maxSpecNo + 1, nullptr);
-      // eventVectorsMutexes[i].resize(maxSpecNo + 1);
       for (size_t j = 0; j < maxSpecNo + 1; j++) {
         eventVectorsMutexes[i].emplace_back(new std::mutex());
       }
@@ -120,7 +119,6 @@ template <class T> void DefaultEventLoader::makeMapToEventLists(std::vector<std:
       for (size_t i = 0; i < m_ws.getNumberHistograms(); ++i) {
         const auto &spec = m_ws.getSpectrum(i);
         getEventsFrom(m_ws.getSpectrum(i, period), vectors[period][spec.getSpectrumNo()]);
-        // eventVectorsMutexes[period][spec.getSpectrumNo()] = new std::mutex();
       }
     }
   } else {
@@ -132,7 +130,6 @@ template <class T> void DefaultEventLoader::makeMapToEventLists(std::vector<std:
     // Set the value to NULL by default
     for (size_t i = 0; i < vectors.size(); ++i) {
       vectors[i].resize(eventid_max + 1, nullptr);
-      // eventVectorsMutexes[i].resize(eventid_max + 1);
       for (size_t j = 0; j < eventid_max + 1; j++) {
         eventVectorsMutexes[i].emplace_back(new std::mutex());
       }
@@ -144,7 +141,6 @@ template <class T> void DefaultEventLoader::makeMapToEventLists(std::vector<std:
       if (wi < m_ws.getNumberHistograms()) {
         for (size_t period = 0; period < m_ws.nPeriods(); ++period) {
           getEventsFrom(m_ws.getSpectrum(wi, period), vectors[period][j - pixelID_to_wi_offset]);
-          // eventVectorsMutexes[period][j - pixelID_to_wi_offset] = new std::mutex();
         }
       }
     }
