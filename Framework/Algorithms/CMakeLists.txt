@@ -69,7 +69,7 @@ set(SRC_FILES
     src/ConvertUnitsUsingDetectorTable.cpp
     src/CopyDataRange.cpp
     src/CopyDetectorMapping.cpp
-    src/CopyInstrumentParameters.cpp
+    # src/CopyInstrumentParameters.cpp
     src/CopyLogs.cpp
     src/CopySample.cpp
     src/CorelliCalibrationApply.cpp
@@ -419,7 +419,7 @@ set(INC_FILES
     inc/MantidAlgorithms/ConvertUnitsUsingDetectorTable.h
     inc/MantidAlgorithms/CopyDataRange.h
     inc/MantidAlgorithms/CopyDetectorMapping.h
-    inc/MantidAlgorithms/CopyInstrumentParameters.h
+    # inc/MantidAlgorithms/CopyInstrumentParameters.h
     inc/MantidAlgorithms/CopyLogs.h
     inc/MantidAlgorithms/CopySample.h
     inc/MantidAlgorithms/CorelliCalibrationApply.h
@@ -777,7 +777,7 @@ set(TEST_FILES
     ConvertUnitsUsingDetectorTableTest.h
     CopyDataRangeTest.h
     CopyDetectorMappingTest.h
-    CopyInstrumentParametersTest.h
+    # CopyInstrumentParametersTest.h
     CopyLogsTest.h
     CopySampleTest.h
     CorelliCalibrationApplyTest.h

@@ -396,23 +396,30 @@ void ExperimentInfo::populateInstrumentParameters() {
       continue;
     }
   }
-  for (const auto &item : paramMapForPosAndRot) {
-    if (isPositionParameter(item.second->name())) {
-      const auto newRelPos = item.second->value<V3D>();
-      updatePosition(compInfo, item.first, newRelPos);
-    } else if (isRotationParameter(item.second->name())) {
-      const auto newRelRot = item.second->value<Quat>();
-      updateRotation(compInfo, item.first, newRelRot);
+
+  paramMap.getMap().cvisit_all([&compInfo](const auto &params) {
+    for (const auto &param : params.second) {
+      if (isPositionParameter(param->name())) {
+        const auto newRelPos = param->template value<V3D>();
+        updatePosition(compInfo, params.first, newRelPos);
+      } else if (isRotationParameter(param->name())) {
+        const auto newRelRot = param->template value<Quat>();
+        updateRotation(compInfo, params.first, newRelRot);
+      }
+      // Parameters for individual components (x,y,z) are ignored. ParameterMap
+      // did compute the correct compound positions and rotations internally.
     }
-    // Parameters for individual components (x,y,z) are ignored. ParameterMap
-    // did compute the correct compound positions and rotations internally.
-  }
+  });
+
   // Special case RectangularDetector: Parameters scalex and scaley affect pixel
   // positions.
-  for (const auto &item : paramMap) {
-    if (isScaleParameter(item.second->name()))
-      adjustPositionsFromScaleFactor(compInfo, item.first, item.second->name(), item.second->value<double>());
-  }
+  paramMap.getMap().cvisit_all([&compInfo](const auto &params) {
+    for (const auto &param : params.second) {
+      if (isScaleParameter(param->name()))
+        adjustPositionsFromScaleFactor(compInfo, params.first, param->name(), param->template value<double>());
+    }
+  });
+
   // paramMapForPosAndRot goes out of scope, dropping all position and rotation
   // parameters of detectors (parameters for non-detector components have been
   // inserted into paramMap via DetectorInfo::setPosition(IComponent *)).

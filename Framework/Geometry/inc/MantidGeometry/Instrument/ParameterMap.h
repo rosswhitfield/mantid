@@ -11,8 +11,7 @@
 #include "MantidGeometry/IDTypes.h" //For specnum_t
 #include "MantidGeometry/IDetector.h"
 #include "MantidGeometry/Instrument/Parameter.h"
-
-#include "tbb/concurrent_unordered_map.h"
+#include <boost/unordered/concurrent_flat_map.hpp>
 
 #include <memory>
 #include <typeinfo>
@@ -37,17 +36,12 @@ class Instrument;
   @date 2/12/2008
 */
 /// Parameter map iterator typedef
-using component_map_it = tbb::concurrent_unordered_multimap<ComponentID, std::shared_ptr<Parameter>>::iterator;
-using component_map_cit = tbb::concurrent_unordered_multimap<ComponentID, std::shared_ptr<Parameter>>::const_iterator;
 
 class MANTID_GEOMETRY_DLL ParameterMap {
 public:
   /// Parameter map typedef
-  using pmap = tbb::concurrent_unordered_multimap<ComponentID, std::shared_ptr<Parameter>>;
-  /// Parameter map iterator typedef
-  using pmap_it = tbb::concurrent_unordered_multimap<ComponentID, std::shared_ptr<Parameter>>::iterator;
-  /// Parameter map iterator typedef
-  using pmap_cit = tbb::concurrent_unordered_multimap<ComponentID, std::shared_ptr<Parameter>>::const_iterator;
+  // create map of set type using boost::concurrent_flat_map
+  using pmap = boost::concurrent_flat_map<ComponentID, std::set<Parameter_sptr>>;
   /// Default constructor
   ParameterMap();
   /// Const constructor
@@ -203,17 +197,19 @@ public:
    *  @return all component values from the given component name
    */
   template <class T> std::vector<T> getType(const std::string &compName, const std::string &name) const {
-    std::vector<T> retval;
+    std::vector<T> retVal;
 
-    pmap_cit it;
-    for (it = m_map.begin(); it != m_map.end(); ++it) {
-      if (compName == it->first->getName()) {
-        std::shared_ptr<Parameter> param = get(it->first, name);
-        if (param)
-          retval.emplace_back(param->value<T>());
+    m_map.cvisit_all([&retVal, &compName, &name](const auto &x) {
+      if (compName == x.first->getName()) {
+        for (const auto &param : x.second) {
+          if (name == param->name()) {
+            retVal.emplace_back(param->template value<T>());
+          }
+        }
       }
-    }
-    return retval;
+    });
+
+    return retVal;
   }
   /** Get the component description by name */
   const std::string getDescription(const std::string &compName, const std::string &name) const;
@@ -265,21 +261,14 @@ public:
   bool getCachedRotation(const IComponent *comp, Kernel::Quat &rotation) const;
   /// Persist a representation of the Parameter map to the open Nexus file
   void saveNexus(::NeXus::File *file, const std::string &group) const;
-  /// Copy pairs (oldComp->id,Parameter) to the m_map assigning the new
-  /// newComp->id
-  void copyFromParameterMap(const IComponent *oldComp, const IComponent *newComp, const ParameterMap *oldPMap);
 
   /// Returns a list of all the parameter files loaded
   const std::vector<std::string> &getParameterFilenames() const;
   /// adds a parameter filename that has been loaded
   void addParameterFilename(const std::string &filename);
 
-  /// access iterators. begin;
-  pmap_it begin() { return m_map.begin(); }
-  pmap_cit begin() const { return m_map.begin(); }
-  /// access iterators. end;
-  pmap_it end() { return m_map.end(); }
-  pmap_cit end() const { return m_map.end(); }
+  // return const m_map
+  const pmap &getMap() const { return m_map; }
 
   bool hasDetectorInfo(const Instrument *instrument) const;
   bool hasComponentInfo(const Instrument *instrument) const;
@@ -298,11 +287,6 @@ private:
 
   /// Assignment operator
   ParameterMap &operator=(ParameterMap *rhs);
-  /// internal function to get position of the parameter in the parameter map
-  component_map_it positionOf(const IComponent *comp, const char *name, const char *type);
-  /// const version of the internal function to get position of the parameter in
-  /// the parameter map
-  component_map_cit positionOf(const IComponent *comp, const char *name, const char *type) const;
   /// calculate relative error for use in diff
   bool relErr(double x1, double x2, double errorVal) const;
 

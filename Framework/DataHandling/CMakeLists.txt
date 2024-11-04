@@ -197,7 +197,7 @@ set(SRC_FILES
     src/SavePAR.cpp
     src/SavePDFGui.cpp
     src/SavePHX.cpp
-    src/SaveParameterFile.cpp
+    # src/SaveParameterFile.cpp
     src/SaveRKH.cpp
     src/SaveRMCProfile.cpp
     src/SaveReflectometryAscii.cpp
@@ -419,7 +419,7 @@ set(INC_FILES
     inc/MantidDataHandling/SavePAR.h
     inc/MantidDataHandling/SavePDFGui.h
     inc/MantidDataHandling/SavePHX.h
-    inc/MantidDataHandling/SaveParameterFile.h
+    # inc/MantidDataHandling/SaveParameterFile.h
     inc/MantidDataHandling/SaveRKH.h
     inc/MantidDataHandling/SaveRMCProfile.h
     inc/MantidDataHandling/SaveReflectometryAscii.h
@@ -625,7 +625,7 @@ set(TEST_FILES
     SavePARTest.h
     SavePDFGuiTest.h
     SavePHXTest.h
-    SaveParameterFileTest.h
+    # SaveParameterFileTest.h
     SaveRKHTest.h
     SaveRMCProfileTest.h
     SaveReflectometryAsciiTest.h

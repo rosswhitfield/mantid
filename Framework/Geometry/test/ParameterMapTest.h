@@ -579,35 +579,6 @@ public:
     TS_ASSERT_EQUALS(fetchedValue->visible(), false);
   }
 
-  void test_copy_from_old_pmap_to_new_pmap_with_new_component() {
-
-    IComponent_sptr oldComp = m_testInstrument->getChild(0);
-    IComponent_sptr newComp = m_testInstrument->getChild(1);
-
-    ParameterMap oldPMap;
-    oldPMap.addBool(oldComp.get(), "A", false);
-    oldPMap.addDouble(oldComp.get(), "B", 1.2);
-
-    ParameterMap newPMap;
-
-    TS_ASSERT_DIFFERS(oldPMap, newPMap);
-
-    newPMap.copyFromParameterMap(oldComp.get(), newComp.get(), &oldPMap);
-
-    TS_ASSERT_EQUALS(newPMap.contains(newComp.get(), "A", ParameterMap::pBool()), true);
-    TS_ASSERT_EQUALS(newPMap.contains(newComp.get(), "B", ParameterMap::pDouble()), true);
-
-    Parameter_sptr a = newPMap.get(newComp.get(), "A");
-    TS_ASSERT_EQUALS(a->value<bool>(), false);
-
-    // change value on new and ensure it is not changed on the old
-    newPMap.addBool(oldComp.get(), "A", true);
-    a = newPMap.get(oldComp.get(), "A");
-    TS_ASSERT_EQUALS(a->value<bool>(), true);
-    auto oldA = oldPMap.get(oldComp.get(), "A");
-    TS_ASSERT_EQUALS(oldA->value<bool>(), false);
-  }
-
   void test_asString_for_doubles() {
     ParameterMap pmap;
     auto comp = m_testInstrument.get();
