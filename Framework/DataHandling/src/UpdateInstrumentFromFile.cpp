@@ -88,12 +88,13 @@ void UpdateInstrumentFromFile::exec() {
   m_ignoreMonitors = (!moveMonitors);
 
   // Check file type
-  if (NexusHDF5Descriptor::isReadable(filename)) {
+  try {
+    boost::scoped_ptr<Kernel::NexusHDF5Descriptor> descriptorNexusHDF5(new Kernel::NexusHDF5Descriptor(filename));
+
     LoadISISNexus2 isisNexus;
     LoadEventNexus eventNexus;
 
     // we open and close the HDF5 file.
-    boost::scoped_ptr<Kernel::NexusHDF5Descriptor> descriptorNexusHDF5(new Kernel::NexusHDF5Descriptor(filename));
 
     if (isisNexus.confidence(*descriptorNexusHDF5) > 0 || eventNexus.confidence(*descriptorNexusHDF5) > 0) {
       const auto &rootEntry = descriptorNexusHDF5->firstEntryNameType();
@@ -102,6 +103,8 @@ void UpdateInstrumentFromFile::exec() {
       updateFromNeXus(nxFile);
       return;
     }
+  } catch (const std::invalid_argument &) {
+    // Not a NeXus file
   }
 
   if (FileDescriptor::isAscii(filename)) {

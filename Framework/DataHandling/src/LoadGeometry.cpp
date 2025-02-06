@@ -26,12 +26,12 @@ bool LoadGeometry::isNexus(const std::string &filename) {
     return false;
   }
 
-  if (Mantid::Kernel::NexusHDF5Descriptor::isReadable(filename)) {
+  try {
     Mantid::Kernel::NexusHDF5Descriptor descriptor(filename);
     return isNexus(descriptor.getAllEntries());
+  } catch (const std::invalid_argument &) {
+    return false;
   }
-
-  return false;
 }
 
 bool LoadGeometry::isNexus(const std::map<std::string, std::set<std::string>> &allEntries) {
