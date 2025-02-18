@@ -114,8 +114,8 @@ set_property(TARGET Muon PROPERTY FOLDER "MantidFramework")
 
 target_link_libraries(
   Muon
-  PUBLIC Mantid::API Mantid::Kernel Mantid::Geometry
-  PRIVATE Mantid::DataObjects Mantid::Indexing Mantid::Nexus Mantid::DataHandling
+  PUBLIC Mantid::API Mantid::Kernel Mantid::Geometry Mantid::DataHandling
+  PRIVATE Mantid::DataObjects Mantid::Indexing Mantid::Nexus
 )
 # Add the unit tests directory
 add_subdirectory(test)
