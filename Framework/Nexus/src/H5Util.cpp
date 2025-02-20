@@ -5,7 +5,7 @@
 //   Institut Laue - Langevin & CSNS, Institute of High Energy Physics, CAS
 // SPDX - License - Identifier: GPL - 3.0 +
 #include "MantidNexus/H5Util.h"
-#include "MantidAPI/LogManager.h"
+#include "MantidKernel/Logger.h"
 
 #include <H5Cpp.h>
 
