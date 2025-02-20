@@ -29,7 +29,7 @@ endif()
 # Add to the 'Framework' group in VS
 set_property(TARGET Nexus PROPERTY FOLDER "MantidFramework")
 
-target_link_libraries(Nexus PUBLIC Mantid::API Mantid::DataObjects Mantid::Kernel Mantid::NexusCpp)
+target_link_libraries(Nexus PRIVATE Mantid::Kernel Mantid::NexusCpp)
 
 # Add the unit tests directory
 add_subdirectory(test)
