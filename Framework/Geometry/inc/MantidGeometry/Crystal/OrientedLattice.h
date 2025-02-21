@@ -7,7 +7,6 @@
 #pragma once
 
 #include "MantidGeometry/Crystal/UnitCell.h"
-#include "MantidNexusCpp/NeXusFile.hpp"
 
 namespace Mantid {
 namespace Geometry {

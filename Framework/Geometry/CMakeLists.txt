@@ -474,7 +474,7 @@ set_property(TARGET Geometry PROPERTY FOLDER "MantidFramework")
 target_link_libraries(
   Geometry
   PUBLIC Mantid::Kernel Mantid::Beamline MuParser::MuParser
-  PRIVATE Mantid::Json
+  PRIVATE Mantid::Json Mantid::NexusCpp
 )
 
 if(ENABLE_OPENGL)

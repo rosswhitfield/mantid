@@ -487,7 +487,6 @@ target_link_libraries(
   Kernel
   PUBLIC Mantid::Types
          Mantid::Json
-         Mantid::NexusCpp
          Mantid::LegacyNexus
          Eigen3::Eigen
          TBB::tbb
@@ -499,7 +498,7 @@ target_link_libraries(
          GSL::gsl
          OpenSSL::SSL
          ${HDF5_LIBRARIES}
-  PRIVATE ${NETWORK_LIBRARIES}
+  PRIVATE Mantid::NexusCpp ${NETWORK_LIBRARIES}
 )
 if(WIN32)
   target_link_libraries(Kernel PRIVATE Psapi.lib) # For memory usage queries

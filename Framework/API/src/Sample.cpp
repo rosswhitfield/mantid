@@ -13,6 +13,7 @@
 #include "MantidKernel/Material.h"
 #include "MantidKernel/Strings.h"
 #include "MantidNexusCpp/NeXusException.hpp"
+#include "MantidNexusCpp/NeXusFile.hpp"
 
 #include <utility>
 

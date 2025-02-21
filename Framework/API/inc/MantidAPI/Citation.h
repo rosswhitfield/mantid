@@ -7,10 +7,13 @@
 #pragma once
 
 #include "MantidAPI/DllConfig.h"
-#include "MantidNexusCpp/NeXusFile.hpp"
 
 #include <string>
 #include <vector>
+
+namespace NeXus {
+class File;
+}
 
 namespace Mantid {
 namespace API {

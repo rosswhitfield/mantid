@@ -17,6 +17,12 @@
 #include <boost/scoped_ptr.hpp>
 #include <optional>
 
+enum class NXnumtype : const int;
+
+namespace NeXus {
+class File;
+}
+
 namespace Mantid {
 namespace MDAlgorithms {
 

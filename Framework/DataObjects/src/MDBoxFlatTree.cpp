@@ -12,6 +12,7 @@
 #include "MantidGeometry/Instrument.h"
 #include "MantidKernel/Logger.h"
 #include "MantidKernel/Strings.h"
+#include "MantidNexusCpp/NeXusFile.hpp"
 #include <Poco/File.h>
 
 #include <algorithm>
@@ -54,7 +55,31 @@ void CheckExperimentBlockNum(const std::list<uint16_t> &experimentBlockNum) {
     ic++;
   }
 }
+/**
+ * Save routine for a generic matrix
+ * @param file : pointer to the NeXus file
+ * @param name : the tag in the NeXus file to save under
+ * @param m : matrix to save
+ * @param type : NXnumtype for the matrix data
+ * @param tag : id for an affine matrix conversion
+ */
+template <typename T>
+void saveMatrix(::NeXus::File *const file, const std::string &name, Kernel::Matrix<T> &m, NXnumtype type,
+                const std::string &tag) {
+  std::vector<T> v = m.getVector();
+  // Number of data points
+  auto nPoints = static_cast<int>(v.size());
 
+  file->makeData(name, type, nPoints, true);
+  // Need a pointer
+  file->putData(&v[0]);
+  if (!tag.empty()) {
+    file->putAttr("type", tag);
+    file->putAttr("rows", static_cast<int>(m.numRows()));
+    file->putAttr("columns", static_cast<int>(m.numCols()));
+  }
+  file->closeData();
+}
 } // namespace
 
 MDBoxFlatTree::MDBoxFlatTree() : m_nDim(-1) {}
@@ -843,29 +868,4 @@ void MDBoxFlatTree::saveAffineTransformMatrix(::NeXus::File *const file, API::Co
   saveMatrix<coord_t>(file, entry_name, matrix, NXnumtype::FLOAT32, transform->id());
 }
 
-/**
- * Save routine for a generic matrix
- * @param file : pointer to the NeXus file
- * @param name : the tag in the NeXus file to save under
- * @param m : matrix to save
- * @param type : NXnumtype for the matrix data
- * @param tag : id for an affine matrix conversion
- */
-template <typename T>
-void saveMatrix(::NeXus::File *const file, const std::string &name, Kernel::Matrix<T> &m, NXnumtype type,
-                const std::string &tag) {
-  std::vector<T> v = m.getVector();
-  // Number of data points
-  auto nPoints = static_cast<int>(v.size());
-
-  file->makeData(name, type, nPoints, true);
-  // Need a pointer
-  file->putData(&v[0]);
-  if (!tag.empty()) {
-    file->putAttr("type", tag);
-    file->putAttr("rows", static_cast<int>(m.numRows()));
-    file->putAttr("columns", static_cast<int>(m.numCols()));
-  }
-  file->closeData();
-}
 } // namespace Mantid::DataObjects

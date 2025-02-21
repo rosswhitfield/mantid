@@ -529,14 +529,8 @@ set_property(TARGET API PROPERTY FOLDER "MantidFramework")
 
 target_link_libraries(
   API
-  PUBLIC Mantid::HistogramData
-         Mantid::Types
-         Mantid::Kernel
-         Mantid::Geometry
-         Mantid::Indexing
-         Mantid::Parallel
-         Mantid::NexusCpp
-  PRIVATE ${WINSOCK} ${BCRYPT} Mantid::Beamline Mantid::Json
+  PUBLIC Mantid::HistogramData Mantid::Types Mantid::Kernel Mantid::Geometry Mantid::Indexing Mantid::Parallel
+  PRIVATE ${WINSOCK} ${BCRYPT} Mantid::Beamline Mantid::Json Mantid::NexusCpp
 )
 
 # Add the unit tests directory

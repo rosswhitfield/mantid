@@ -6,6 +6,7 @@
 // SPDX - License - Identifier: GPL - 3.0 +
 #include "MantidAPI/Citation.h"
 #include "MantidKernel/WarningSuppressions.h"
+#include "MantidNexusCpp/NeXusFile.hpp"
 
 #include <boost/python/class.hpp>
 #include <boost/python/copy_const_reference.hpp>

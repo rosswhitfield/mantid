@@ -11,6 +11,7 @@
 #include "MantidDataObjects/MDHistoWorkspace.h"
 #include "MantidGeometry/Crystal/OrientedLattice.h"
 #include "MantidKernel/Strings.h"
+#include "MantidNexusCpp/NeXusFile.hpp"
 
 using namespace Mantid::Kernel;
 using namespace Mantid::API;

@@ -12,12 +12,14 @@
 #include "MantidAPI/DllConfig.h"
 #include "MantidKernel/DateAndTime.h"
 #include "MantidKernel/PropertyHistory.h"
-#include "MantidNexusCpp/NeXusFile.hpp"
 
 #include <ctime>
 #include <set>
 #include <vector>
 
+namespace NeXus {
+class File;
+}
 namespace Mantid {
 namespace API {
 class IAlgorithm;

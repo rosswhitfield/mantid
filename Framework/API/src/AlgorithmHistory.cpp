@@ -9,6 +9,7 @@
 //----------------------------------------------------------------------
 #include "MantidAPI/AlgorithmHistory.h"
 #include "MantidAPI/Algorithm.h"
+#include "MantidNexusCpp/NeXusFile.hpp"
 
 #if BOOST_VERSION == 106900
 #ifndef BOOST_PENDING_INTEGER_LOG2_HPP

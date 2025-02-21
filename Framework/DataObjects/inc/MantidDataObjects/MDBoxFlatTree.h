@@ -132,8 +132,5 @@ public:
   static void saveWSGenericInfo(::NeXus::File *const file, const API::IMDWorkspace_const_sptr &ws);
 };
 
-template <typename T>
-void saveMatrix(::NeXus::File *const file, const std::string &name, Kernel::Matrix<T> &m, NXnumtype type,
-                const std::string &tag);
 } // namespace DataObjects
 } // namespace Mantid

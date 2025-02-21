@@ -9,6 +9,8 @@
 #include "MantidAPI/AlgorithmHistory.h"
 #include "MantidAPI/HistoryView.h"
 #include "MantidKernel/EnvironmentHistory.h"
+#include "MantidNexusCpp/NeXusFile.hpp"
+
 #include "MantidKernel/StringTokenizer.h"
 #include "MantidKernel/Strings.h"
 #include "MantidTypes/Core/DateAndTime.h"

@@ -149,8 +149,13 @@ set_python_properties(PythonAPIModule _api)
 target_link_libraries(
   PythonAPIModule
   PUBLIC Mantid::API
-  PRIVATE Mantid::PythonInterfaceCore Mantid::PythonGeometryModule Mantid::PythonKernelModule Mantid::HistogramData
-          Mantid::Indexing Mantid::Types
+  PRIVATE Mantid::PythonInterfaceCore
+          Mantid::PythonGeometryModule
+          Mantid::PythonKernelModule
+          Mantid::HistogramData
+          Mantid::Indexing
+          Mantid::Types
+          Mantid::NexusCpp
 )
 
 # Installation settings

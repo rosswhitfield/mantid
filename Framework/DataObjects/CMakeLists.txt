@@ -238,7 +238,7 @@ set_property(TARGET DataObjects PROPERTY FOLDER "MantidFramework")
 target_link_libraries(
   DataObjects
   PUBLIC Mantid::API Mantid::Geometry Mantid::HistogramData Mantid::Kernel
-  PRIVATE Mantid::Json Mantid::Indexing
+  PRIVATE Mantid::Json Mantid::Indexing Mantid::NexusCpp
 )
 
 # Add the unit tests directory

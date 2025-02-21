@@ -389,7 +389,11 @@ endif()
 # Add to the 'Framework' group in VS
 set_property(TARGET MDAlgorithms PROPERTY FOLDER "MantidFramework")
 
-target_link_libraries(MDAlgorithms PUBLIC Mantid::API Mantid::DataObjects Mantid::Kernel Mantid::Geometry)
+target_link_libraries(
+  MDAlgorithms
+  PUBLIC Mantid::API Mantid::DataObjects Mantid::Kernel Mantid::Geometry
+  PRIVATE Mantid::NexusCpp
+)
 
 # Add the unit tests directory
 add_subdirectory(test)
