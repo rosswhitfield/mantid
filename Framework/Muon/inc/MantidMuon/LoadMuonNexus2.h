@@ -12,8 +12,8 @@
 #include "MantidDataObjects/Histogram1D.h"
 #include "MantidKernel/DateAndTimeHelpers.h"
 #include "MantidKernel/TimeSeriesProperty.h"
+#include "MantidLegacyNexus/LegacyNexusClasses.h"
 #include "MantidMuon/DllConfig.h"
-#include "MantidMuon/LegacyNexusClasses.h"
 #include "MantidMuon/LoadMuonNexus.h"
 
 namespace Mantid {

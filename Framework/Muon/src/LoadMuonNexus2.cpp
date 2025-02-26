@@ -23,9 +23,9 @@
 #include "MantidKernel/Unit.h"
 #include "MantidKernel/UnitFactory.h"
 #include "MantidKernel/UnitLabelTypes.h"
+#include "MantidLegacyNexus/LegacyNexusClasses.h"
 #include "MantidLegacyNexus/NeXusException.hpp"
 #include "MantidLegacyNexus/NeXusFile.hpp"
-#include "MantidMuon/LegacyNexusClasses.h"
 
 #include <Poco/Path.h>
 #include <cmath>
