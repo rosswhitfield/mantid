@@ -244,6 +244,10 @@ public:
     // Set ub and Goniometer rotation
     WorkspaceCreationHelper::setOrientedLattice(inWS, 12.0, 12.0, 12.0);
     WorkspaceCreationHelper::setGoniometer(inWS, 0., 0., 0.);
+    // Mantid::Geometry::Goniometer gm;
+
+    // ws->mutableRun().setGoniometer(gm, true);
+    // gm.pushAxis(45, 0., 1., 0., 0);
 
     PredictPeaks alg;
     TS_ASSERT_THROWS_NOTHING(alg.initialize())
@@ -267,6 +271,12 @@ public:
     TS_ASSERT_EQUALS(ws->getNumberPeaks(), 1);
     TS_ASSERT_EQUALS(ws->getPeak(0).getHKL(), V3D(1, 0, 0));
     TS_ASSERT_DELTA(ws->getPeak(0).getWavelength(), 1.5, 1e-6);
+    TS_ASSERT_EQUALS(ws->getPeak(0).getQSampleFrame().X(), 1);
+    TS_ASSERT_EQUALS(ws->getPeak(0).getQSampleFrame().Y(), 1);
+    TS_ASSERT_EQUALS(ws->getPeak(0).getQSampleFrame().Z(), 1);
+    TS_ASSERT_EQUALS(ws->getPeak(0).getQLabFrame().X(), 1);
+    TS_ASSERT_EQUALS(ws->getPeak(0).getQLabFrame().Y(), 1);
+    TS_ASSERT_EQUALS(ws->getPeak(0).getQLabFrame().Z(), 1);
 
     // Remove workspace from the data service.
     AnalysisDataService::Instance().remove(outWSName);
