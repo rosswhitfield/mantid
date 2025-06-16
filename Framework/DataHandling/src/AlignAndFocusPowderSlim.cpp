@@ -224,34 +224,21 @@ private:
 
 class Histogrammer {
 public:
-  Histogrammer(const std::vector<double> *binedges, const double width, const bool linear_bins) : m_binedges(binedges) {
+  Histogrammer(const std::vector<double> *binedges) : m_binedges(binedges) {
     m_xmin = binedges->front();
     m_xmax = binedges->back();
-
-    if (linear_bins) {
-      m_findBin = DataObjects::EventList::findLinearBin;
-      m_bin_divisor = 1. / width;
-      m_bin_offset = m_xmin * m_bin_divisor;
-    } else {
-      m_findBin = DataObjects::EventList::findLogBin;
-      m_bin_divisor = 1. / log1p(abs(width)); // use this to do change of base
-      m_bin_offset = log(m_xmin) * m_bin_divisor;
-    }
   }
 
   bool inRange(const double tof) const { return !(tof < m_xmin || tof >= m_xmax); }
 
-  const std::optional<size_t> findBin(const double tof) const {
-    return m_findBin(*m_binedges, tof, m_bin_divisor, m_bin_offset, true);
+  size_t findBin(const double tof) const {
+    return std::distance(m_binedges->begin(), std::upper_bound(m_binedges->begin(), m_binedges->end(), tof)) - 1;
   }
 
 private:
-  double m_bin_divisor;
-  double m_bin_offset;
   double m_xmin;
   double m_xmax;
   const std::vector<double> *m_binedges;
-  std::optional<size_t> (*m_findBin)(const MantidVec &, const double, const double, const double, const bool);
 };
 
 template <typename Type> class MinMax {
@@ -311,12 +298,10 @@ public:
         // focussed time-off-flight
         const auto tof = static_cast<double>(*tof_ptr) * m_calibration->value(*detid_ptr);
         // increment the bin if it is found
-        if (m_histogrammer->inRange(tof)) {
-          if (const auto binnum = m_histogrammer->findBin(tof)) {
-            y_temp->at(binnum.value())++;
-          }
-        }
+        if (m_histogrammer->inRange(tof))
+          y_temp->at(m_histogrammer->findBin(tof))++;
       }
+
       ++detid_ptr;
       ++tof_ptr;
     }
@@ -385,7 +370,7 @@ public:
 
         // create a histogrammer to process the events
         auto &spectrum = m_wksp->getSpectrum(wksp_index);
-        Histogrammer histogrammer(&spectrum.readX(), m_binWidth, m_linearBins);
+        Histogrammer histogrammer(&spectrum.readX());
 
         // std::atomic allows for multi-threaded accumulation and who cares about floats when you are just
         // counting things
