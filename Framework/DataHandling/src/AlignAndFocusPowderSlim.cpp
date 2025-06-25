@@ -348,9 +348,6 @@ public:
         eventRangeFull.second = length_actual;
       }
 
-      // create object so bank calibration can be re-used
-      std::unique_ptr<AlignAndFocusPowderSlim::BankCalibration> calibration = nullptr;
-
       if (eventRangeFull.first == eventRangeFull.second) {
         // g_log.warning() << "No data for bank " << entry_name << '\n';
       } else {
@@ -379,14 +376,6 @@ public:
           // load detid
           std::unique_ptr<std::vector<detid_t>> event_detid = std::make_unique<std::vector<detid_t>>();
           m_loader.loadDetid(event_group, event_detid, eventRangePartial);
-          // immediately find min/max to allow for other things to read disk
-          const auto [minval, maxval] = parallel_minmax(event_detid.get(), m_grainsize_event);
-          // only recreate calibraion if it doesn't already have the useful information
-          if ((!calibration) || (calibration->idmin() > static_cast<detid_t>(minval)) ||
-              (calibration->idmax() < static_cast<detid_t>(maxval))) {
-            calibration = std::make_unique<AlignAndFocusPowderSlim::BankCalibration>(
-                static_cast<detid_t>(minval), static_cast<detid_t>(maxval), m_calibration);
-          }
 
           // load time-of-flight
           std::unique_ptr<std::vector<float>> event_time_of_flight = std::make_unique<std::vector<float>>();
@@ -395,8 +384,11 @@ public:
           // Non-blocking processing of the events
           // Each thread needs its own ProcessEventsTask
           tg.run([event_detid = std::move(event_detid), event_time_of_flight = std::move(event_time_of_flight),
-                  calibration = std::move(calibration), x_ptr = &spectrum.readX(), masked_ptr = &m_masked, &y_temp,
-                  grainsize = m_grainsize_event]() {
+                  x_ptr = &spectrum.readX(), masked_ptr = &m_masked, &y_temp, grainsize = m_grainsize_event,
+                  m_calibration_ptr = &m_calibration]() {
+            const auto [minval, maxval] = parallel_minmax(event_detid.get(), grainsize);
+            auto calibration = std::make_unique<AlignAndFocusPowderSlim::BankCalibration>(
+                static_cast<detid_t>(minval), static_cast<detid_t>(maxval), *m_calibration_ptr);
             const auto numEvent = event_time_of_flight->size();
 
             // Create a local task for this thread
