@@ -18,6 +18,8 @@
 #include <sstream>
 #include <typeinfo>
 
+#include <H5Ppublic.h>
+
 using std::string;
 using std::stringstream;
 using std::vector;
@@ -146,6 +148,30 @@ void File::initOpenFile(std::string const &filename, NXaccess const am) {
   // create file acccess property list
   hid_t fapl = -1;
   fapl = H5Pcopy(H5Util::defaultFileAcc().getId());
+
+  // H5Pset_all_coll_metadata_ops(fapl, 1);
+
+  // Variables to store the retrieved cache parameters
+  int mdc_nelmts;
+  size_t rdcc_nslots;
+  size_t rdcc_nbytes;
+  double rdcc_w0;
+
+  // Retrieve the cache parameters
+  herr_t status = H5Pget_cache(fapl, &mdc_nelmts, &rdcc_nslots, &rdcc_nbytes, &rdcc_w0);
+  if (status < 0) {
+    throw NXEXCEPTION("Cannot get cache size");
+  }
+
+  // Print the retrieved cache parameters
+  g_log->warning("Metadata cache elements: %d", mdc_nelmts);
+  g_log->warning("Raw data chunk cache slots: %zu", rdcc_nslots);
+  g_log->warning("Raw data chunk cache bytes: %zu", rdcc_nbytes);
+  g_log->warning("Raw data chunk cache preemption policy: %f", rdcc_w0);
+
+  // set cache for very large files
+  // rdcc_nbytes = 1024 * 1024 * 1024; // 1 GB
+  H5Pset_cache(fapl, mdc_nelmts, rdcc_nslots, rdcc_nbytes, rdcc_w0);
 
   hid_t temp_fid(-1);
   if (am != NXaccess::CREATE5) {

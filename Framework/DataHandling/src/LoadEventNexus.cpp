@@ -474,7 +474,6 @@ void LoadEventNexus::execLoader() {
 
   // close the file since LoadNexusMonitors will take care of its own file
   // handle
-  m_file->close();
 
   // Load the monitors with child algorithm 'LoadNexusMonitors'
   if (load_monitors) {
@@ -1179,11 +1178,13 @@ void LoadEventNexus::loadEvents(API::Progress *const prog, const bool monitors) 
   shortest_tof = static_cast<double>(std::numeric_limits<uint32_t>::max()) * 0.1;
   longest_tof = 0.;
 
+  // close because LoadBankFromDiskTask will open it's own file handle
+  m_file->close();
+
   bool loaded{false};
   auto loaderType = defineLoaderType(haveWeights, oldNeXusFileNames, classType);
   if (loaderType == LoaderType::MULTIPROCESS) {
     auto ws = m_ws->getSingleHeldWorkspace();
-    m_file->close();
 
     struct ExceptionOutput {
       static void out(decltype(g_log) &log, const std::exception &except, int level = 0) {
@@ -1209,8 +1210,6 @@ void LoadEventNexus::loadEvents(API::Progress *const prog, const bool monitors) 
       g_log.warning() << "\nMultiprocess event loader failed, falling back "
                          "to default loader.\n";
     }
-
-    safeOpenFile(m_filename);
   }
   if (!loaded) {
     loaderType = LoaderType::DEFAULT; // to be used later
@@ -1274,7 +1273,9 @@ void LoadEventNexus::loadEvents(API::Progress *const prog, const bool monitors) 
     m_ws->setAllX(HistogramData::BinEdges{0.0, 1.0});
 
   // if there is time_of_flight load it
+  safeOpenFile(m_filename);
   adjustTimeOfFlightISISLegacy(*m_file, m_ws, m_top_entry_name, classType, descriptor.get());
+  m_file->close();
 
   if (m_is_time_filtered) {
     if (loaderType == LoaderType::MULTIPROCESS) {
