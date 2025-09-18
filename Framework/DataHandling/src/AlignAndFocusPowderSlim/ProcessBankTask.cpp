@@ -97,15 +97,14 @@ void ProcessBankTask::operator()(const tbb::blocked_range<size_t> &range) const 
 
     // std::atomic allows for multi-threaded accumulation and who cares about floats when you are just
     // counting things
-    // std::vector<std::atomic_uint32_t> y_temp(spectrum.dataY().size());
-    std::vector<uint32_t> y_temp(spectrum.dataY().size());
+    std::vector<std::atomic_uint32_t> y_temp(spectrum.dataY().size());
+    // std::vector<uint32_t> y_temp(spectrum.dataY().size());
 
     // task group allows for separate of disk read from processing
     // tbb::task_group_context tgroupcontext; // needed by parallel_reduce
     // tbb::task_group tgroup(tgroupcontext);
 
     // create object so bank calibration can be re-used
-    std::unique_ptr<BankCalibration> calibration = nullptr;
 
     // get handle to the data
     auto detID_SDS = event_group.openDataSet(NxsFieldNames::DETID);
@@ -115,86 +114,65 @@ void ProcessBankTask::operator()(const tbb::blocked_range<size_t> &range) const 
     Nexus::H5Util::readStringAttribute(tof_SDS, "units", tof_unit);
     const double time_conversion = Kernel::Units::timeConversionValue(tof_unit, MICROSEC);
 
-    // declare arrays once so memory can be reused
-    auto event_detid = std::make_unique<std::vector<uint32_t>>();       // uint32 for ORNL nexus file
-    auto event_time_of_flight = std::make_unique<std::vector<float>>(); // float for ORNL nexus files
-
-    // read parts of the bank at a time until all events are processed
+    // Prepare all chunks for this bank
+    std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> chunk_offsets_slabs;
     while (!eventRanges.empty()) {
-      // Create offsets and slab sizes for the next chunk of events.
-      // This will read at most m_events_per_chunk events from the file
-      // and will split the ranges if necessary for the next iteration.
-      std::vector<size_t> offsets;
-      std::vector<size_t> slabsizes;
-
+      std::vector<size_t> offsets, slabsizes;
       size_t total_events_to_read = 0;
-      // Process the event ranges until we reach the desired number of events to read or run out of ranges
       while (!eventRanges.empty() && total_events_to_read < m_events_per_chunk) {
-        // Get the next event range from the stack
         auto eventRange = eventRanges.top();
         eventRanges.pop();
-
         size_t range_size = eventRange.second - eventRange.first;
         size_t remaining_chunk = m_events_per_chunk - total_events_to_read;
-
-        // If the range size is larger than the remaining chunk, we need to split it
         if (range_size > remaining_chunk) {
-          // Split the range: process only part of it now, push the rest back for later
           offsets.push_back(eventRange.first);
           slabsizes.push_back(remaining_chunk);
           total_events_to_read += remaining_chunk;
-          // Push the remainder of the range back to the front for next iteration
           eventRanges.emplace(eventRange.first + remaining_chunk, eventRange.second);
           break;
         } else {
           offsets.push_back(eventRange.first);
           slabsizes.push_back(range_size);
           total_events_to_read += range_size;
-          // Continue to next range
         }
       }
-
-      // log the event ranges being processed
-      std::ostringstream oss;
-      oss << "Processing " << bankName << " with " << total_events_to_read << " events in the ranges: ";
-      for (size_t i = 0; i < offsets.size(); ++i) {
-        oss << "[" << offsets[i] << ", " << (offsets[i] + slabsizes[i]) << "), ";
-      }
-      oss << "\n";
-      g_log.debug() << oss.str();
-
-      // load detid and tof at the same time
-      tbb::parallel_invoke(
-          [&] { // load detid
-            // event_detid->clear();
-            m_loader.loadData(detID_SDS, event_detid, offsets, slabsizes);
-            // immediately find min/max to allow for other things to read disk
-            const auto [minval, maxval] = parallel_minmax(event_detid.get(), m_grainsize_event);
-            // only recreate calibration if it doesn't already have the useful information
-            if ((!calibration) || (calibration->idmin() > static_cast<detid_t>(minval)) ||
-                (calibration->idmax() < static_cast<detid_t>(maxval))) {
-              calibration = std::make_unique<BankCalibration>(
-                  static_cast<detid_t>(minval), static_cast<detid_t>(maxval), time_conversion, m_calibration, m_masked);
-            }
-          },
-          [&] { // load time-of-flight
-            // event_time_of_flight->clear();
-            m_loader.loadData(tof_SDS, event_time_of_flight, offsets, slabsizes);
-          });
-
-      // Create a local task for this thread
-      ProcessEventsTask task(event_detid.get(), event_time_of_flight.get(), calibration.get(), &spectrum.readX());
-
-      // Non-blocking processing of the events
-      const tbb::blocked_range<size_t> range_info(0, event_time_of_flight->size(), m_grainsize_event);
-      tbb::parallel_reduce(range_info, task);
-
-      // Atomically accumulate results into shared y_temp to combine local histograms
-      for (size_t i = 0; i < y_temp.size(); ++i) {
-        // y_temp[i].fetch_add(task.y_temp[i], std::memory_order_relaxed);
-        y_temp[i] += task.y_temp[i];
-      }
+      if (!offsets.empty())
+        chunk_offsets_slabs.emplace_back(std::move(offsets), std::move(slabsizes));
     }
+
+    // Parallelize over all chunks for this bank
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, chunk_offsets_slabs.size()), [&](const tbb::blocked_range<size_t> &chunk_range) {
+          for (size_t chunk_idx = chunk_range.begin(); chunk_idx != chunk_range.end(); ++chunk_idx) {
+            const auto &[offsets, slabsizes] = chunk_offsets_slabs[chunk_idx];
+            std::unique_ptr<BankCalibration> calibration = nullptr;
+
+            // Local vectors for this chunk
+            auto event_detid = std::make_unique<std::vector<uint32_t>>();
+            auto event_time_of_flight = std::make_unique<std::vector<float>>();
+
+            // Load data in parallel
+            tbb::parallel_invoke(
+                [&] {
+                  m_loader.loadData(detID_SDS, event_detid, offsets, slabsizes);
+                  const auto [minval, maxval] = parallel_minmax(event_detid.get(), m_grainsize_event);
+                  calibration =
+                      std::make_unique<BankCalibration>(static_cast<detid_t>(minval), static_cast<detid_t>(maxval),
+                                                        time_conversion, m_calibration, m_masked);
+                },
+                [&] { m_loader.loadData(tof_SDS, event_time_of_flight, offsets, slabsizes); });
+
+            // Process events
+            ProcessEventsTask task(event_detid.get(), event_time_of_flight.get(), calibration.get(), &spectrum.readX());
+            const tbb::blocked_range<size_t> range_info(0, event_time_of_flight->size(), m_grainsize_event);
+            tbb::parallel_reduce(range_info, task);
+
+            // Atomically accumulate results into shared y_temp
+            for (size_t i = 0; i < y_temp.size(); ++i) {
+              y_temp[i].fetch_add(task.y_temp[i], std::memory_order_relaxed);
+            }
+          }
+        });
 
     // copy the data out into the correct spectrum
     auto &y_values = spectrum.dataY();
