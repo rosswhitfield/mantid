@@ -18,11 +18,25 @@ ProcessEventsTask::ProcessEventsTask(ProcessEventsTask &other, tbb::split)
     : y_temp(other.y_temp.size(), 0), m_detids(other.m_detids), m_tofs(other.m_tofs),
       m_calibration(other.m_calibration), m_binedges(other.m_binedges) {}
 
+namespace {
+inline size_t binary_search(const std::vector<double> &edges, double value) {
+  // Implement inlined, branch-predictable binary search instead of using std::upper_bound.
+  // This can be slightly faster due to less iterator overhead.
+  size_t left = 0, right = edges.size() - 1;
+  while (left < right - 1) {
+    size_t mid = (left + right) / 2;
+    if (value < edges[mid])
+      right = mid;
+    else
+      left = mid;
+  }
+  return left;
+}
+} // namespace
+
 void ProcessEventsTask::operator()(const tbb::blocked_range<size_t> &range) {
   // Cache values to reduce number of function calls
   const auto &range_end = range.end();
-  const auto &binedges_cbegin = m_binedges->cbegin();
-  const auto &binedges_cend = m_binedges->cend();
   const auto &tof_min = m_binedges->front();
   const auto &tof_max = m_binedges->back();
 
@@ -37,11 +51,9 @@ void ProcessEventsTask::operator()(const tbb::blocked_range<size_t> &range) {
       const double &tof = static_cast<double>(*tof_iter) * calib_factor;
       if ((tof < tof_max) && (!(tof < tof_min))) { // check against max first to allow skipping second
         // Find the bin index using binary search
-        const auto &it = std::upper_bound(binedges_cbegin, binedges_cend, tof);
-
+        const auto &bin = binary_search(*m_binedges, tof);
         // Increment the count if a bin was found
-        const auto &bin = static_cast<size_t>(std::distance(binedges_cbegin, it) - 1);
-        y_temp[bin]++;
+        ++y_temp[bin];
       }
     }
     ++detid_iter;
