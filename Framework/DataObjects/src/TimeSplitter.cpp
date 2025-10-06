@@ -480,6 +480,20 @@ const TimeROI &TimeSplitter::getTimeROI(const int workspaceIndex) const {
   return m_cachedPartialTimeROIs[effectiveIndex];
 }
 
+const TimeROI TimeSplitter::combinedTimeROI() const {
+  TimeROI combined;
+
+  auto it = m_roi_map.cbegin();
+  for (; it != std::prev(m_roi_map.cend()); it++) {
+    DateAndTime intervalStart = it->first;
+    if (it->second == NO_TARGET)
+      continue;
+    DateAndTime intervalStop = std::next(it)->first;
+    combined.appendROIFast(intervalStart, intervalStop);
+  }
+  return combined;
+}
+
 /**
  * Returns a vector of splitting intervals corresponding to the m_roi_map.
  * For efficiency, the actual vector calculation should be done only on demand ("lazy") and only when the current vector
@@ -676,6 +690,29 @@ void TimeSplitter::splitEventVec(const std::function<const DateAndTime(const Eve
       }
     }
   }
+}
+
+// return the indices of the TimeSplitter would fall in the supplied vector of times
+std::vector<std::pair<size_t, int>> TimeSplitter::calculate_indices(const std::vector<DateAndTime> &times) const {
+  // this will create a vector of pairs, where each pair is the roi and output index
+
+  // using m_roi_map directly here, as it has all the information needed
+  std::vector<std::pair<size_t, int>> indices;
+  if (this->empty()) {
+    // if the TimeSplitter is empty, then we just return the whole range with NO_TARGET
+    indices.emplace_back(0, NO_TARGET);
+    return indices;
+  }
+  indices.reserve(m_roi_map.size());
+
+  for (const auto &iter : m_roi_map) {
+    const auto idx = std::lower_bound(times.cbegin(), times.cend(), iter.first);
+    if (idx != times.cend()) {
+      indices.emplace_back(std::distance(times.cbegin(), idx), iter.second);
+    }
+  }
+
+  return indices;
 }
 
 } // namespace DataObjects

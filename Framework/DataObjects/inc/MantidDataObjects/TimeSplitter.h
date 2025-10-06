@@ -58,6 +58,11 @@ public:
   /// Split a list of events according to Pulse time or Pulse + TOF time
   void splitEventList(const EventList &events, std::map<int, EventList *> &partials, const bool pulseTof = false,
                       const bool tofCorrect = false, const double factor = 1.0, const double shift = 0.0) const;
+  // Return a TimeROI that covers all the time intervals for all targets
+  const Kernel::TimeROI combinedTimeROI() const;
+  /// Given a list of times, calculate the corresponding indices in the TimeSplitter
+  std::vector<std::pair<size_t, int>> calculate_indices(const std::vector<DateAndTime> &times) const;
+
   /// Print the (destination index | DateAndTime boundary) pairs of this splitter.
   std::string debugPrint() const;
 
