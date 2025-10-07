@@ -401,7 +401,14 @@ void AlignAndFocusPowderSlim::exec() {
       workspaces.emplace_back(wksp->clone());
     }
 
-    auto splitter_roi = timeSplitter.combinedTimeROI();
+    // print timeSplitter information
+    g_log.warning() << "Time Splitter information:\n";
+    g_log.warning() << timeSplitter.debugPrint();
+
+    const auto splitter_roi = timeSplitter.combinedTimeROI();
+    // print out the splitter ROI
+    g_log.warning() << "Splitter ROI:\n";
+    g_log.warning() << splitter_roi.debugStrPrint();
 
     if (roi.useAll())
       roi = splitter_roi; // use the splitter ROI if no time filtering is specified
@@ -409,6 +416,26 @@ void AlignAndFocusPowderSlim::exec() {
       roi.update_intersection(splitter_roi); // otherwise intersect with the splitter ROI
 
     const auto pulse_indices = this->determinePulseIndices(wksp, roi);
+    // print out indices
+    g_log.warning() << "Pulse indices from time ROI:\n";
+    for (const auto &pi : pulse_indices) {
+      g_log.warning() << pi.first << ": " << pi.second << "\n";
+    }
+
+    // get pulse times from frequency log on workspace
+    const auto frequency_log = dynamic_cast<const TimeSeriesProperty<double> *>(wksp->run().getProperty("frequency"));
+    if (!frequency_log) {
+      throw std::runtime_error("Frequency log not found in workspace run");
+    }
+    const auto pulse_times =
+        std::make_unique<std::vector<Mantid::Types::Core::DateAndTime>>(frequency_log->timesAsVector());
+
+    auto pulse_indices_to_target = timeSplitter.calculate_indices(*pulse_times);
+    // print out indices
+    g_log.warning() << "Pulse indices from time splitter:\n";
+    for (const auto &pi : pulse_indices_to_target) {
+      g_log.warning() << pi.first << ": " << pi.second << "\n";
+    }
 
     auto progress = std::make_shared<API::Progress>(this, .17, .9, num_banks_to_read * workspaceIndices.size());
 
@@ -644,8 +671,8 @@ AlignAndFocusPowderSlim::determinePulseIndices(const API::MatrixWorkspace_sptr &
   }
 
   // update the run TimeROI and remove log data outside the time ROI
-  wksp->mutableRun().setTimeROI(roi);
-  wksp->mutableRun().removeDataOutsideTimeROI();
+  // wksp->mutableRun().setTimeROI(roi);
+  // wksp->mutableRun().removeDataOutsideTimeROI();
 
   return pulse_indices;
 }
