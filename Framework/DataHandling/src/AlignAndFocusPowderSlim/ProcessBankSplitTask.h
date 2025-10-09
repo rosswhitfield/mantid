@@ -20,9 +20,10 @@ namespace Mantid::DataHandling::AlignAndFocusPowderSlim {
 class ProcessBankSplitTask {
 public:
   ProcessBankSplitTask(std::vector<std::string> &bankEntryNames, H5::H5File &h5file, const bool is_time_filtered,
-                       API::MatrixWorkspace_sptr &wksp, const std::map<detid_t, double> &calibration,
+                       std::vector<API::MatrixWorkspace_sptr> &wksps, const std::map<detid_t, double> &calibration,
                        const std::set<detid_t> &masked, const size_t events_per_chunk, const size_t grainsize_event,
-                       std::vector<PulseROI> pulse_indices, std::shared_ptr<API::Progress> &progress);
+                       std::vector<PulseROI> pulse_indices, std::vector<std::pair<size_t, int>> pulse_indices_to_target,
+                       std::shared_ptr<API::Progress> &progress);
 
   void operator()(const tbb::blocked_range<size_t> &range) const;
 
@@ -30,7 +31,7 @@ private:
   H5::H5File m_h5file;
   const std::vector<std::string> m_bankEntries;
   mutable NexusLoader m_loader;
-  API::MatrixWorkspace_sptr m_wksp;
+  std::vector<API::MatrixWorkspace_sptr> m_wksps;
   const std::map<detid_t, double> m_calibration; // detid: 1/difc
   const std::set<detid_t> m_masked;
   /// number of events to read from disk at one time

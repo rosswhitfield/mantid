@@ -439,9 +439,9 @@ void AlignAndFocusPowderSlim::exec() {
 
     auto progress = std::make_shared<API::Progress>(this, .17, .9, num_banks_to_read * workspaceIndices.size());
 
-    ProcessBankSplitTask task(bankEntryNames, h5file, is_time_filtered, wksp, m_calibration, m_masked,
+    ProcessBankSplitTask task(bankEntryNames, h5file, true, workspaces, m_calibration, m_masked,
                               static_cast<size_t>(DISK_CHUNK), static_cast<size_t>(GRAINSIZE_EVENTS), pulse_indices,
-                              progress);
+                              pulse_indices_to_target, progress);
     // generate threads only if appropriate
     if (num_banks_to_read > 1) {
       tbb::parallel_for(tbb::blocked_range<size_t>(0, num_banks_to_read), task);

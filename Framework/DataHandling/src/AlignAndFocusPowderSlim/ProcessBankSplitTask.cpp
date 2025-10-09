@@ -26,14 +26,16 @@ auto g_log = Kernel::Logger("ProcessBankSplitTask");
 
 } // namespace
 ProcessBankSplitTask::ProcessBankSplitTask(std::vector<std::string> &bankEntryNames, H5::H5File &h5file,
-                                           const bool is_time_filtered, API::MatrixWorkspace_sptr &wksp,
+                                           const bool is_time_filtered, std::vector<API::MatrixWorkspace_sptr> &wksps,
                                            const std::map<detid_t, double> &calibration,
                                            const std::set<detid_t> &masked, const size_t events_per_chunk,
                                            const size_t grainsize_event, std::vector<PulseROI> pulse_indices,
+                                           std::vector<std::pair<size_t, int>> pulse_indices_to_target,
                                            std::shared_ptr<API::Progress> &progress)
-    : m_h5file(h5file), m_bankEntries(bankEntryNames), m_loader(is_time_filtered, pulse_indices), m_wksp(wksp),
-      m_calibration(calibration), m_masked(masked), m_events_per_chunk(events_per_chunk),
-      m_grainsize_event(grainsize_event), m_progress(progress) {}
+    : m_h5file(h5file), m_bankEntries(bankEntryNames),
+      m_loader(is_time_filtered, pulse_indices, pulse_indices_to_target), m_wksps(wksps), m_calibration(calibration),
+      m_masked(masked), m_events_per_chunk(events_per_chunk), m_grainsize_event(grainsize_event), m_progress(progress) {
+}
 
 void ProcessBankSplitTask::operator()(const tbb::blocked_range<size_t> &range) const {
   auto entry = m_h5file.openGroup("entry"); // type=NXentry
@@ -59,8 +61,16 @@ void ProcessBankSplitTask::operator()(const tbb::blocked_range<size_t> &range) c
 
     auto eventRanges = m_loader.getEventIndexRanges(event_group, total_events);
 
+    auto eventSplitRanges = m_loader.getEventIndexSplitRanges(event_group, total_events);
+    while (!eventSplitRanges.empty()) {
+      auto range = eventSplitRanges.top();
+      eventSplitRanges.pop();
+      g_log.warning() << bankName << "  target " << range.first << " : [" << range.second.first << ", "
+                      << range.second.second << ")\n";
+    }
+
     // create a histogrammer to process the events
-    auto &spectrum = m_wksp->getSpectrum(wksp_index);
+    auto &spectrum = m_wksps.at(0)->getSpectrum(wksp_index);
 
     // std::atomic allows for multi-threaded accumulation and who cares about floats when you are just
     // counting things

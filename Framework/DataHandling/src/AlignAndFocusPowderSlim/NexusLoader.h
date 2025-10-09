@@ -26,15 +26,18 @@ using EventROI = std::pair<uint64_t, uint64_t>; // start and stop indices for th
 
 class NexusLoader {
 public:
-  NexusLoader(const bool is_time_filtered, const std::vector<PulseROI> &pulse_indices);
+  NexusLoader(const bool is_time_filtered, const std::vector<PulseROI> &pulse_indices,
+              const std::vector<std::pair<size_t, int>> &pulse_indices_to_target = {{0, 0}});
   template <typename Type>
   void loadData(H5::DataSet &SDS, std::unique_ptr<std::vector<Type>> &data, const std::vector<size_t> &offsets,
                 const std::vector<size_t> &slabsizes);
   std::stack<EventROI> getEventIndexRanges(H5::Group &event_group, const uint64_t number_events);
+  std::stack<std::pair<int, EventROI>> getEventIndexSplitRanges(H5::Group &event_group, const uint64_t number_events);
 
 private:
   const bool m_is_time_filtered;
   const std::vector<PulseROI> m_pulse_indices;
+  const std::vector<std::pair<size_t, int>> m_pulse_indices_to_target;
   void loadEventIndex(H5::Group &event_group, std::unique_ptr<std::vector<uint64_t>> &data);
 };
 
