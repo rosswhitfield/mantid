@@ -66,6 +66,7 @@ const std::string FILTER_TIMESTOP("FilterByTimeStop");
 const std::string SPLITTER_WS("SplitterWorkspace");
 const std::string SPLITTER_RELATIVE("RelativeTime");
 const std::string PROCESS_BANK_SPLIT_TASK("ProcessBankSplitTask");
+const std::string FULL_TIME("UseFullTime");
 const std::string FILTER_BAD_PULSES("FilterBadPulses");
 const std::string FILTER_BAD_PULSES_LOWER_CUTOFF("BadPulsesLowerCutoff");
 const std::string X_MIN("XMin");
