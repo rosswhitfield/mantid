@@ -106,6 +106,11 @@ target_link_libraries(
 # Add to the 'Framework/Python' group in MSVS
 set_property(TARGET ${_target_name} PROPERTY FOLDER "MantidFramework/Python")
 
+# On macOS with USE_PYTHON_DYNAMIC_LIB=OFF, allow Python symbols to be resolved at runtime
+if(APPLE AND NOT USE_PYTHON_DYNAMIC_LIB)
+  target_link_options(${_target_name} PRIVATE -Wl,-undefined,dynamic_lookup)
+endif()
+
 # rpath settings
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set_target_properties(${_target_name} PROPERTIES INSTALL_RPATH "@loader_path/../MacOS")

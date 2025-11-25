@@ -115,6 +115,11 @@ target_link_libraries(
   PRIVATE Mantid::PythonInterfaceCore ${PYTHON_DEPS}
 )
 
+# On macOS with USE_PYTHON_DYNAMIC_LIB=OFF, allow Python symbols to be resolved at runtime
+if(APPLE AND NOT USE_PYTHON_DYNAMIC_LIB)
+  target_link_options(PythonKernelModule PRIVATE -Wl,-undefined,dynamic_lookup)
+endif()
+
 # Installation settings
 set_target_properties(PythonKernelModule PROPERTIES INSTALL_RPATH "${EXT_INSTALL_RPATH}")
 mtd_install_shared_library(TARGETS PythonKernelModule DESTINATION ${Python_SITELIB_RELPATH}/mantid/kernel)
