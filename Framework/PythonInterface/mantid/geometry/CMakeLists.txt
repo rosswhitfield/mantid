@@ -81,6 +81,11 @@ target_link_libraries(
   PRIVATE Mantid::PythonInterfaceCore Mantid::PythonKernelModule Mantid::Beamline Mantid::Types
 )
 
+# On macOS with USE_PYTHON_DYNAMIC_LIB=OFF, allow Python symbols to be resolved at runtime
+if(APPLE AND NOT USE_PYTHON_DYNAMIC_LIB)
+  target_link_options(PythonGeometryModule PRIVATE -Wl,-undefined,dynamic_lookup)
+endif()
+
 # Installation settings
 set_target_properties(PythonGeometryModule PROPERTIES INSTALL_RPATH "${EXT_INSTALL_RPATH};${DL_ORIGIN_TAG}/../kernel/")
 mtd_install_shared_library(TARGETS PythonGeometryModule DESTINATION ${Python_SITELIB_RELPATH}/mantid/geometry)
