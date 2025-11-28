@@ -43,11 +43,6 @@ target_link_libraries(
   ${Boost_LIBRARIES}
 )
 
-# On macOS with USE_PYTHON_DYNAMIC_LIB=OFF, allow Python symbols to be resolved at runtime
-if(APPLE AND NOT USE_PYTHON_DYNAMIC_LIB)
-  target_link_options(PythonCurveFittingModule PRIVATE -Wl,-undefined,dynamic_lookup)
-endif()
-
 # Installation settings
 set_target_properties(
   PythonCurveFittingModule

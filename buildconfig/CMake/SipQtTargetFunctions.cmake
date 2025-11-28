@@ -72,9 +72,6 @@ function(mtd_add_sip_module)
 
   if(USE_PYTHON_DYNAMIC_LIB)
     target_link_libraries(${PARSED_TARGET_NAME} PRIVATE Python::Python)
-  elseif(APPLE)
-    # On macOS with USE_PYTHON_DYNAMIC_LIB=OFF, allow Python symbols to be resolved at runtime
-    target_link_options(${PARSED_TARGET_NAME} PRIVATE -Wl,-undefined,dynamic_lookup)
   endif()
 
   target_link_libraries(${PARSED_TARGET_NAME} PRIVATE ${PARSED_LINK_LIBS})

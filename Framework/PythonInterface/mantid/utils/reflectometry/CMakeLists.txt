@@ -18,11 +18,6 @@ set_python_properties(PythonReflHelpersModule _polarization_helpers)
 # Add the required dependencies
 target_link_libraries(PythonReflHelpersModule PRIVATE Mantid::Algorithms Mantid::PythonInterfaceCore)
 
-# On macOS with USE_PYTHON_DYNAMIC_LIB=OFF, allow Python symbols to be resolved at runtime
-if(APPLE AND NOT USE_PYTHON_DYNAMIC_LIB)
-  target_link_options(PythonReflHelpersModule PRIVATE -Wl,-undefined,dynamic_lookup)
-endif()
-
 # Installation settings
 set_target_properties(PythonReflHelpersModule PROPERTIES INSTALL_RPATH "${EXT_INSTALL_RPATH}")
 mtd_install_shared_library(
