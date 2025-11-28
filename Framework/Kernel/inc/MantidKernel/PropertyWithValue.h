@@ -97,6 +97,17 @@ template <> MANTID_KERNEL_DLL void PropertyWithValue<std::string>::saveProperty(
 template <> MANTID_KERNEL_DLL void PropertyWithValue<std::vector<double>>::saveProperty(Nexus::File *file);
 template <> MANTID_KERNEL_DLL void PropertyWithValue<std::vector<int32_t>>::saveProperty(Nexus::File *file);
 
+// Explicit template instantiation declarations
+extern template class MANTID_KERNEL_DLL PropertyWithValue<float>;
+extern template class MANTID_KERNEL_DLL PropertyWithValue<double>;
+extern template class MANTID_KERNEL_DLL PropertyWithValue<int32_t>;
+extern template class MANTID_KERNEL_DLL PropertyWithValue<uint32_t>;
+extern template class MANTID_KERNEL_DLL PropertyWithValue<int64_t>;
+extern template class MANTID_KERNEL_DLL PropertyWithValue<uint64_t>;
+extern template class MANTID_KERNEL_DLL PropertyWithValue<std::vector<double>>;
+extern template class MANTID_KERNEL_DLL PropertyWithValue<std::vector<int32_t>>;
+extern template class MANTID_KERNEL_DLL PropertyWithValue<std::string>;
+
 template <typename TYPE> Logger PropertyWithValue<TYPE>::g_logger("PropertyWithValue");
 
 } // namespace Kernel

@@ -19,6 +19,12 @@ template <typename T> DLLExport bool checkIsEmpty(const T &);
 /// Specialization for any vector type
 template <typename T> bool checkIsEmpty(const std::vector<T> &value) { return value.empty(); }
 
+// Explicit template instantiation declarations
+extern template MANTID_KERNEL_DLL bool checkIsEmpty(const std::string &);
+extern template MANTID_KERNEL_DLL bool checkIsEmpty(const double &);
+extern template MANTID_KERNEL_DLL bool checkIsEmpty(const int &);
+extern template MANTID_KERNEL_DLL bool checkIsEmpty(const long &);
+
 /// Defines the concept of emptiness
 template <typename T> struct IsEmpty {
   /**

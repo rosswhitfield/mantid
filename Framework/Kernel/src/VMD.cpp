@@ -542,8 +542,8 @@ template <typename TYPE> VMDBase<TYPE> VMDBase<TYPE>::getNormalVector(const std:
 }
 
 /// Instantiate VMDBase classes
-template class VMDBase<double>;
-template class VMDBase<float>;
+template class MANTID_KERNEL_DLL VMDBase<double>;
+template class MANTID_KERNEL_DLL VMDBase<float>;
 
 /**
   Prints a text representation of itself

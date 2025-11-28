@@ -85,6 +85,10 @@ using VMD_t = float;
 /// Define the VMD as using the double or float data type.
 using VMD = VMDBase<VMD_t>;
 
+// Explicit template instantiation declarations
+extern template class MANTID_KERNEL_DLL VMDBase<double>;
+extern template class MANTID_KERNEL_DLL VMDBase<float>;
+
 // Overload operator <<
 MANTID_KERNEL_DLL std::ostream &operator<<(std::ostream &, const VMDBase<double> &);
 MANTID_KERNEL_DLL std::ostream &operator<<(std::ostream &, const VMDBase<float> &);

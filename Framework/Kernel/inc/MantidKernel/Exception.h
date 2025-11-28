@@ -275,6 +275,11 @@ public:
   const char *what() const noexcept override;
 };
 
+// Explicit template instantiation declarations
+extern template class MANTID_KERNEL_DLL MisMatch<int>;
+extern template class MANTID_KERNEL_DLL MisMatch<size_t>;
+extern template class MANTID_KERNEL_DLL MisMatch<unsigned long>;
+
 /**
 \class IndexError
 \brief Exception for index errors

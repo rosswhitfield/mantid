@@ -239,6 +239,7 @@ const char *MisMatch<T>::what() const noexcept
 /// \cond TEMPLATE
 template class DLLExport MisMatch<int>;
 template class DLLExport MisMatch<size_t>;
+template class DLLExport MisMatch<unsigned long>;
 /// \endcond TEMPLATE
 
 //-------------------------
