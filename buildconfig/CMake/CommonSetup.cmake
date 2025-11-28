@@ -171,7 +171,7 @@ endif()
 # ######################################################################################################################
 # Visibility Setting
 # ######################################################################################################################
-if(CMAKE_COMPILER_IS_GNUCXX)
+if(CMAKE_COMPILER_IS_GNUCXX OR (APPLE AND ${CMAKE_CXX_COMPILER_ID} MATCHES "Clang"))
   set(CMAKE_CXX_VISIBILITY_PRESET
       hidden
       CACHE STRING ""
