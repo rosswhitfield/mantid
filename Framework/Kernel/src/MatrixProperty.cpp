@@ -35,10 +35,15 @@ MatrixProperty<TYPE>::MatrixProperty(const MatrixProperty &rhs) : PropertyWithVa
 template <typename TYPE> MatrixProperty<TYPE>::~MatrixProperty() = default;
 
 ///@cond
+// Ensure explicit instantiations have default visibility for RTTI to work across library boundaries
+EXTERN_TEMPLATE_INSTANTIATION_PUSH
+
 // Symbol definitions
 template class MANTID_KERNEL_DLL MatrixProperty<double>;
 template class MANTID_KERNEL_DLL MatrixProperty<int>;
 template class MANTID_KERNEL_DLL MatrixProperty<float>;
+
+EXTERN_TEMPLATE_INSTANTIATION_POP
 ///@endcond
 } // namespace Mantid::Kernel
 

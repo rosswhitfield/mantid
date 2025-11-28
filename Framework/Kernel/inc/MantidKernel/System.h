@@ -36,6 +36,19 @@
 #endif
 
 /**
+ * Macros for controlling visibility of template instantiations.
+ * Use these to wrap explicit template instantiations to ensure RTTI works
+ * correctly across library boundaries when using -fvisibility=hidden.
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define EXTERN_TEMPLATE_INSTANTIATION_PUSH _Pragma("GCC visibility push(default)")
+#define EXTERN_TEMPLATE_INSTANTIATION_POP _Pragma("GCC visibility pop")
+#else
+#define EXTERN_TEMPLATE_INSTANTIATION_PUSH
+#define EXTERN_TEMPLATE_INSTANTIATION_POP
+#endif
+
+/**
  * Function arguments are sometimes unused in certain implmentations
  * but are required for documentation purposes.
  * This is a macro to silence compiler warnings about the subject

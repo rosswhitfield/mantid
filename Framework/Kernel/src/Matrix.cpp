@@ -1680,16 +1680,15 @@ template <typename T> void fillFromStream(std::istream &is, Kernel::Matrix<T> &i
 
 // Explicit instatiations. Avoid duplicate symbol definitions in
 // client libraries. This must match the explicit declaration list
-// in the header. MSVC/gcc differ in whether these symbols need to be
-// marked as exported
-#if defined(_MSC_VER)
-#define KERNEL_MATRIX_SYMBOL_DLL MANTID_KERNEL_DLL
-#else
-#define KERNEL_MATRIX_SYMBOL_DLL
-#endif
-template class KERNEL_MATRIX_SYMBOL_DLL Matrix<double>;
-template class KERNEL_MATRIX_SYMBOL_DLL Matrix<int>;
-template class KERNEL_MATRIX_SYMBOL_DLL Matrix<float>;
+// in the header. With -fvisibility=hidden, all platforms need explicit export
+// for RTTI to work across library boundaries
+EXTERN_TEMPLATE_INSTANTIATION_PUSH
+
+template class Matrix<double>;
+template class Matrix<int>;
+template class Matrix<float>;
+
+EXTERN_TEMPLATE_INSTANTIATION_POP
 
 template MANTID_KERNEL_DLL std::ostream &operator<<(std::ostream &, const DblMatrix &);
 template MANTID_KERNEL_DLL void dumpToStream(std::ostream &, const DblMatrix &, const char);

@@ -122,6 +122,9 @@ template <typename TYPE> void ArrayBoundedValidator<TYPE>::setError(const TYPE &
   m_actualValidator.setError(value);
 }
 
+// Ensure explicit instantiations have default visibility for RTTI to work across library boundaries
+EXTERN_TEMPLATE_INSTANTIATION_PUSH
+
 // Required explicit instantiations
 template class ArrayBoundedValidator<double>;
 template class ArrayBoundedValidator<int32_t>;
@@ -129,5 +132,7 @@ template class ArrayBoundedValidator<int64_t>;
 #if defined(_WIN32) || defined(__clang__) && defined(__APPLE__)
 template class ArrayBoundedValidator<long>;
 #endif
+
+EXTERN_TEMPLATE_INSTANTIATION_POP
 
 } // namespace Mantid::Kernel

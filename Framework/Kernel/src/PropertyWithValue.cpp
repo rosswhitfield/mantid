@@ -35,6 +35,9 @@ PROPERTYWITHVALUE_SAVEPROPERTY(std::vector<double>)
 PROPERTYWITHVALUE_SAVEPROPERTY(std::vector<int32_t>)
 
 /// @cond
+// Ensure explicit instantiations have default visibility for RTTI to work across library boundaries
+EXTERN_TEMPLATE_INSTANTIATION_PUSH
+
 template class MANTID_KERNEL_DLL PropertyWithValue<uint16_t>;
 template class MANTID_KERNEL_DLL PropertyWithValue<bool>;
 template class MANTID_KERNEL_DLL PropertyWithValue<OptionalBool>;
@@ -75,6 +78,8 @@ template class MANTID_KERNEL_DLL PropertyWithValue<std::vector<long long>>;
 template class MANTID_KERNEL_DLL PropertyWithValue<std::vector<unsigned long long>>;
 template class MANTID_KERNEL_DLL PropertyWithValue<std::vector<std::vector<long long>>>;
 #endif
+
+EXTERN_TEMPLATE_INSTANTIATION_POP
 /// @endcond
 
 // The explicit template instantiations for some types does not have an export

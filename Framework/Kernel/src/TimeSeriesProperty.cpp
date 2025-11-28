@@ -2226,7 +2226,12 @@ template <typename TYPE> std::vector<TimeInterval> TimeSeriesProperty<TYPE>::get
 /// @cond
 // -------------------------- Macro to instantiation concrete types
 // --------------------------------
-#define INSTANTIATE(TYPE) template class TimeSeriesProperty<TYPE>;
+// Ensure explicit instantiations have default visibility for RTTI to work across library boundaries
+EXTERN_TEMPLATE_INSTANTIATION_PUSH
+
+#define INSTANTIATE(TYPE)                                                                                              \
+  template class TimeValueUnit<TYPE>;                                                                                  \
+  template class TimeSeriesProperty<TYPE>;
 
 // -------------------------- Concrete instantiation
 // -----------------------------------------------
@@ -2239,6 +2244,7 @@ INSTANTIATE(double)
 INSTANTIATE(std::string)
 INSTANTIATE(bool)
 
+EXTERN_TEMPLATE_INSTANTIATION_POP
 /// @endcond
 
 } // namespace Kernel

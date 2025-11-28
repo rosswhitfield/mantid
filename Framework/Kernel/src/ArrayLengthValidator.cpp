@@ -163,6 +163,9 @@ template <typename TYPE> std::string ArrayLengthValidator<TYPE>::checkValidity(c
   return "";
 }
 
+// Ensure explicit instantiations have default visibility for RTTI to work across library boundaries
+EXTERN_TEMPLATE_INSTANTIATION_PUSH
+
 // Required explicit instantiations
 template class ArrayLengthValidator<double>;
 template class ArrayLengthValidator<int32_t>;
@@ -171,4 +174,6 @@ template class ArrayLengthValidator<std::string>;
 #if defined(_WIN32) || defined(__clang__) && defined(__APPLE__)
 template class ArrayLengthValidator<long>;
 #endif
+
+EXTERN_TEMPLATE_INSTANTIATION_POP
 } // namespace Mantid::Kernel

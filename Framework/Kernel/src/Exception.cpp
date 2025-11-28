@@ -237,8 +237,13 @@ const char *MisMatch<T>::what() const noexcept
 }
 
 /// \cond TEMPLATE
+// Ensure explicit instantiations have default visibility for RTTI to work across library boundaries
+EXTERN_TEMPLATE_INSTANTIATION_PUSH
+
 template class DLLExport MisMatch<int>;
 template class DLLExport MisMatch<size_t>;
+
+EXTERN_TEMPLATE_INSTANTIATION_POP
 /// \endcond TEMPLATE
 
 //-------------------------

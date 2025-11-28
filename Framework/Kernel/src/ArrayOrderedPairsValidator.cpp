@@ -44,6 +44,9 @@ std::string ArrayOrderedPairsValidator<TYPE>::checkValidity(const std::vector<TY
   return error.str();
 }
 
+// Ensure explicit instantiations have default visibility for RTTI to work across library boundaries
+EXTERN_TEMPLATE_INSTANTIATION_PUSH
+
 // Required explicit instantiations
 template class ArrayOrderedPairsValidator<double>;
 template class ArrayOrderedPairsValidator<int32_t>;
@@ -51,5 +54,7 @@ template class ArrayOrderedPairsValidator<int64_t>;
 #if defined(_WIN32) || defined(__clang__) && defined(__APPLE__)
 template class ArrayOrderedPairsValidator<long>;
 #endif
+
+EXTERN_TEMPLATE_INSTANTIATION_POP
 
 } // namespace Mantid::Kernel
