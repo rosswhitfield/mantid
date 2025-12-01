@@ -2226,7 +2226,7 @@ template <typename TYPE> std::vector<TimeInterval> TimeSeriesProperty<TYPE>::get
 /// @cond
 // -------------------------- Macro to instantiation concrete types
 // --------------------------------
-#define INSTANTIATE(TYPE) template class TimeSeriesProperty<TYPE>;
+#define INSTANTIATE(TYPE) template class DLLExport TimeSeriesProperty<TYPE>;
 
 // -------------------------- Concrete instantiation
 // -----------------------------------------------
