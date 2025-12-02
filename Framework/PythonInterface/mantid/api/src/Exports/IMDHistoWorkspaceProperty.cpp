@@ -13,6 +13,13 @@ using Mantid::API::WorkspaceProperty; // NOLINT
 
 GET_POINTER_SPECIALIZATION(WorkspaceProperty<IMDHistoWorkspace>)
 
+// Explicit template instantiation to ensure visibility across shared libraries
+namespace Mantid {
+namespace API {
+extern template class WorkspaceProperty<IMDHistoWorkspace>;
+} // namespace API
+} // namespace Mantid
+
 void export_IMDHistoWorkspaceProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
   WorkspacePropertyExporter<IMDHistoWorkspace>::define("IMDHistoWorkspaceProperty");

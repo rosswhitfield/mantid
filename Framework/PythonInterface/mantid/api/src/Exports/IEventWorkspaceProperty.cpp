@@ -13,6 +13,13 @@ using Mantid::API::WorkspaceProperty; // NOLINT
 
 GET_POINTER_SPECIALIZATION(WorkspaceProperty<IEventWorkspace>)
 
+// Explicit template instantiation to ensure visibility across shared libraries
+namespace Mantid {
+namespace API {
+extern template class WorkspaceProperty<IEventWorkspace>;
+} // namespace API
+} // namespace Mantid
+
 void export_IEventWorkspaceProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
 

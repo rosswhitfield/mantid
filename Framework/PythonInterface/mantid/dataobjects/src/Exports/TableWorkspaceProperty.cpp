@@ -12,6 +12,13 @@ using Mantid::DataObjects::TableWorkspace;
 
 GET_POINTER_SPECIALIZATION(Mantid::API::WorkspaceProperty<TableWorkspace>)
 
+// Explicit template instantiation to ensure visibility across shared libraries
+namespace Mantid {
+namespace API {
+extern template class WorkspaceProperty<Mantid::DataObjects::TableWorkspace>;
+} // namespace API
+} // namespace Mantid
+
 void export_TableWorkspaceProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
   WorkspacePropertyExporter<TableWorkspace>::define("TableWorkspaceProperty");
