@@ -12,6 +12,13 @@ using Mantid::DataObjects::GroupingWorkspace;
 
 GET_POINTER_SPECIALIZATION(Mantid::API::WorkspaceProperty<GroupingWorkspace>)
 
+// Explicit template instantiation to ensure visibility across shared libraries
+namespace Mantid {
+namespace API {
+extern template class WorkspaceProperty<Mantid::DataObjects::GroupingWorkspace>;
+} // namespace API
+} // namespace Mantid
+
 void export_GroupingWorkspaceProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
   WorkspacePropertyExporter<GroupingWorkspace>::define("GroupingWorkspaceProperty");

@@ -12,6 +12,13 @@ using Mantid::DataObjects::OffsetsWorkspace;
 
 GET_POINTER_SPECIALIZATION(Mantid::API::WorkspaceProperty<OffsetsWorkspace>)
 
+// Explicit template instantiation to ensure visibility across shared libraries
+namespace Mantid {
+namespace API {
+extern template class WorkspaceProperty<Mantid::DataObjects::OffsetsWorkspace>;
+} // namespace API
+} // namespace Mantid
+
 void export_OffsetsWorkspaceProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
   WorkspacePropertyExporter<OffsetsWorkspace>::define("OffsetsWorkspaceProperty");

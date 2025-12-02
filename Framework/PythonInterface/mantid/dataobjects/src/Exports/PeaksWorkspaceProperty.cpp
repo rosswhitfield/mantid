@@ -13,6 +13,13 @@ using Mantid::DataObjects::PeaksWorkspace;
 
 GET_POINTER_SPECIALIZATION(WorkspaceProperty<PeaksWorkspace>)
 
+// Explicit template instantiation to ensure visibility across shared libraries
+namespace Mantid {
+namespace API {
+extern template class WorkspaceProperty<Mantid::DataObjects::PeaksWorkspace>;
+} // namespace API
+} // namespace Mantid
+
 void export_PeaksWorkspaceProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
   WorkspacePropertyExporter<PeaksWorkspace>::define("PeaksWorkspaceProperty");

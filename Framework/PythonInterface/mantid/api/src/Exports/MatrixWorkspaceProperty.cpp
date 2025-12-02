@@ -13,6 +13,13 @@ using Mantid::API::WorkspaceProperty; // NOLINT
 
 GET_POINTER_SPECIALIZATION(WorkspaceProperty<MatrixWorkspace>)
 
+// Explicit template instantiation to ensure visibility across shared libraries
+namespace Mantid {
+namespace API {
+extern template class WorkspaceProperty<MatrixWorkspace>;
+} // namespace API
+} // namespace Mantid
+
 void export_MatrixWorkspaceProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
   WorkspacePropertyExporter<MatrixWorkspace>::define("MatrixWorkspaceProperty");

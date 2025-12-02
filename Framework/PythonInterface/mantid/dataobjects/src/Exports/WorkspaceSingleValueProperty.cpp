@@ -12,6 +12,13 @@ using Mantid::DataObjects::WorkspaceSingleValue;
 
 GET_POINTER_SPECIALIZATION(Mantid::API::WorkspaceProperty<WorkspaceSingleValue>)
 
+// Explicit template instantiation to ensure visibility across shared libraries
+namespace Mantid {
+namespace API {
+extern template class WorkspaceProperty<Mantid::DataObjects::WorkspaceSingleValue>;
+} // namespace API
+} // namespace Mantid
+
 void export_WorkspaceSingleValueProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
   WorkspacePropertyExporter<WorkspaceSingleValue>::define("WorkspaceSingleValueProperty");

@@ -13,6 +13,13 @@ using Mantid::DataObjects::MaskWorkspace;
 
 GET_POINTER_SPECIALIZATION(WorkspaceProperty<MaskWorkspace>)
 
+// Explicit template instantiation to ensure visibility across shared libraries
+namespace Mantid {
+namespace API {
+extern template class WorkspaceProperty<Mantid::DataObjects::MaskWorkspace>;
+} // namespace API
+} // namespace Mantid
+
 void export_MaskWorkspaceProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
 

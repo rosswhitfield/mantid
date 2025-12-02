@@ -12,6 +12,13 @@ using Mantid::DataObjects::SplittersWorkspace;
 
 GET_POINTER_SPECIALIZATION(Mantid::API::WorkspaceProperty<SplittersWorkspace>)
 
+// Explicit template instantiation to ensure visibility across shared libraries
+namespace Mantid {
+namespace API {
+extern template class WorkspaceProperty<Mantid::DataObjects::SplittersWorkspace>;
+} // namespace API
+} // namespace Mantid
+
 void export_SplittersWorkspaceProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
   WorkspacePropertyExporter<SplittersWorkspace>::define("SplittersWorkspaceProperty");
