@@ -771,6 +771,7 @@ bool LogManager::operator!=(const LogManager &other) const {
       const;                                                                                                           \
   template MANTID_API_DLL TYPE LogManager::getPropertyValueAsType(const std::string &) const;
 
+INSTANTIATE(float)
 INSTANTIATE(double)
 INSTANTIATE(int32_t)
 INSTANTIATE(int64_t)
