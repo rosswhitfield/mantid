@@ -258,5 +258,35 @@ void LogManager::addProperty(const std::string &name, const TYPE &value, const s
   newProp->setUnits(units);
   addProperty(std::move(newProp), overwrite);
 }
+
+// Extern template declarations for explicit instantiations in LogManager.cpp
+extern template MANTID_API_DLL Kernel::TimeSeriesProperty<double> *
+LogManager::getTimeSeriesProperty(const std::string &) const;
+extern template MANTID_API_DLL Kernel::TimeSeriesProperty<int32_t> *
+LogManager::getTimeSeriesProperty(const std::string &) const;
+extern template MANTID_API_DLL Kernel::TimeSeriesProperty<int64_t> *
+LogManager::getTimeSeriesProperty(const std::string &) const;
+extern template MANTID_API_DLL Kernel::TimeSeriesProperty<uint32_t> *
+LogManager::getTimeSeriesProperty(const std::string &) const;
+extern template MANTID_API_DLL Kernel::TimeSeriesProperty<uint64_t> *
+LogManager::getTimeSeriesProperty(const std::string &) const;
+extern template MANTID_API_DLL Kernel::TimeSeriesProperty<std::string> *
+LogManager::getTimeSeriesProperty(const std::string &) const;
+extern template MANTID_API_DLL Kernel::TimeSeriesProperty<bool> *
+LogManager::getTimeSeriesProperty(const std::string &) const;
+
+extern template MANTID_API_DLL double LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL int32_t LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL int64_t LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL uint32_t LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL uint64_t LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL std::string LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL bool LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL uint16_t LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL std::vector<double> LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL std::vector<size_t> LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL std::vector<int> LogManager::getPropertyValueAsType(const std::string &) const;
+extern template MANTID_API_DLL std::vector<long> LogManager::getPropertyValueAsType(const std::string &) const;
+
 } // namespace API
 } // namespace Mantid
