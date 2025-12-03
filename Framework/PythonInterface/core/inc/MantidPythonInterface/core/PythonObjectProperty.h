@@ -25,7 +25,6 @@ class Value;
 namespace Mantid::Kernel {
 using PythonObject = boost::python::object;
 
-#if !defined(__APPLE__) && !(defined(__linux__) && defined(__clang__))
 /** NOTE:
  *  For Linux builds (and maybe Windows), it is necessary that the below DLL export occur here.
  *  This declaration normally lives in Framework/Kernel/PropertyWithValue.cpp.  However, because the boost library is
@@ -34,8 +33,8 @@ using PythonObject = boost::python::object;
  *  Exception: Linux with clang needs this in the source file instead
  */
 // Instantiate a copy of the class with our template type so we generate the symbols for the methods in the hxx header.
-template class MANTID_PYTHONINTERFACE_CORE_DLL PropertyWithValue<PythonObject>;
-#endif
+extern template class MANTID_PYTHONINTERFACE_CORE_DLL PropertyWithValue<PythonObject>;
+
 } // namespace Mantid::Kernel
 
 namespace Mantid::PythonInterface {
