@@ -94,7 +94,7 @@ template <typename T> std::string ArrayProperty<T>::setValue(const std::string &
 
 template <typename T> void ArrayProperty<T>::visualStudioC4661Workaround() {}
 
-/// @cond
+// Explicit template instantiation definitions
 // export macro not needed for int32_t due to explicit specialization in header.
 template class ArrayProperty<int32_t>;
 
@@ -120,8 +120,6 @@ template class DLLExport ArrayProperty<unsigned long>;
 template class DLLExport ArrayProperty<std::vector<long>>;
 template class DLLExport ArrayProperty<std::vector<unsigned long>>;
 #endif
-
-/// @endcond
 
 template <> MANTID_KERNEL_DLL void ArrayProperty<int>::visualStudioC4661Workaround() {}
 

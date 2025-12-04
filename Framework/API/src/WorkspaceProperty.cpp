@@ -18,15 +18,14 @@
 #include "MantidAPI/WorkspaceProperty.hxx"
 
 namespace Mantid::API {
-///@cond TEMPLATE
-template class MANTID_API_DLL Mantid::API::WorkspaceProperty<Mantid::API::Workspace>;
-template class MANTID_API_DLL Mantid::API::WorkspaceProperty<Mantid::API::IEventWorkspace>;
-template class MANTID_API_DLL Mantid::API::WorkspaceProperty<Mantid::API::IMDEventWorkspace>;
-template class MANTID_API_DLL Mantid::API::WorkspaceProperty<Mantid::API::IMDHistoWorkspace>;
-template class MANTID_API_DLL Mantid::API::WorkspaceProperty<Mantid::API::IMDWorkspace>;
-template class MANTID_API_DLL Mantid::API::WorkspaceProperty<Mantid::API::MatrixWorkspace>;
-template class MANTID_API_DLL Mantid::API::WorkspaceProperty<Mantid::API::IPeaksWorkspace>;
-template class MANTID_API_DLL Mantid::API::WorkspaceProperty<Mantid::API::ITableWorkspace>;
-template class MANTID_API_DLL Mantid::API::WorkspaceProperty<Mantid::API::WorkspaceGroup>;
-///@endcond TEMPLATE
+// Explicit template instantiation definitions
+template class MANTID_API_DLL WorkspaceProperty<Workspace>;
+template class MANTID_API_DLL WorkspaceProperty<IEventWorkspace>;
+template class MANTID_API_DLL WorkspaceProperty<IMDEventWorkspace>;
+template class MANTID_API_DLL WorkspaceProperty<IMDHistoWorkspace>;
+template class MANTID_API_DLL WorkspaceProperty<IMDWorkspace>;
+template class MANTID_API_DLL WorkspaceProperty<MatrixWorkspace>;
+template class MANTID_API_DLL WorkspaceProperty<IPeaksWorkspace>;
+template class MANTID_API_DLL WorkspaceProperty<ITableWorkspace>;
+template class MANTID_API_DLL WorkspaceProperty<WorkspaceGroup>;
 } // namespace Mantid::API

@@ -6,6 +6,7 @@
 // SPDX - License - Identifier: GPL - 3.0 +
 #pragma once
 
+#include "MantidAPI/DllConfig.h"
 #include "MantidAPI/IWorkspaceProperty.h"
 #include "MantidKernel/Logger.h"
 #include "MantidKernel/PropertyWithValue.h"
@@ -48,7 +49,8 @@ and the overwriting the old one at the end.)
 @date 10/12/2007
 */
 template <typename TYPE = MatrixWorkspace>
-class WorkspaceProperty : public Kernel::PropertyWithValue<std::shared_ptr<TYPE>>, public IWorkspaceProperty {
+class MANTID_API_DLL WorkspaceProperty : public Kernel::PropertyWithValue<std::shared_ptr<TYPE>>,
+                                         public IWorkspaceProperty {
 public:
   explicit WorkspaceProperty(
       const std::string &name, const std::string &wsName, const unsigned int direction,
