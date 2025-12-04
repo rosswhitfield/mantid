@@ -75,12 +75,6 @@ PROPERTYWITHVALUE_LOGGER(std::vector<long>)
 PROPERTYWITHVALUE_LOGGER(std::vector<unsigned long>)
 PROPERTYWITHVALUE_LOGGER(std::vector<std::vector<long>>)
 PROPERTYWITHVALUE_LOGGER(std::vector<std::vector<unsigned long>>)
-PROPERTYWITHVALUE_LOGGER(long long)
-PROPERTYWITHVALUE_LOGGER(unsigned long long)
-PROPERTYWITHVALUE_LOGGER(std::vector<long long>)
-PROPERTYWITHVALUE_LOGGER(std::vector<unsigned long long>)
-PROPERTYWITHVALUE_LOGGER(std::vector<std::vector<long long>>)
-PROPERTYWITHVALUE_LOGGER(std::vector<std::vector<unsigned long long>>)
 #endif
 #ifdef __linux__
 PROPERTYWITHVALUE_LOGGER(long long)
