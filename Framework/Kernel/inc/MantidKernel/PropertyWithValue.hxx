@@ -179,10 +179,8 @@ template <typename TYPE> std::string PropertyWithValue<TYPE>::setValue(const std
     return "";
   } catch (boost::bad_lexical_cast &) {
     std::string error = "Could not set property " + name() + ". Can not convert \"" + value + "\" to " + type();
-    g_logger.debug() << error;
     return error;
   } catch (std::invalid_argument &except) {
-    g_logger.debug() << "Could not set property " << name() << ": " << except.what();
     return except.what();
   }
 }
@@ -243,10 +241,7 @@ template <typename TYPE> PropertyWithValue<TYPE> &PropertyWithValue<TYPE>::opera
     //  m_value += rhs->m_value; for values
     //  or concatenates vectors for vectors
     addingOperator(m_value, rhs->m_value);
-  } else
-    g_logger.warning() << "PropertyWithValue " << this->name()
-                       << " could not be added to another property of the "
-                          "same name but incompatible type.\n";
+  }
 
   return *this;
 }
