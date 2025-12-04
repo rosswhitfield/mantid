@@ -96,7 +96,5 @@ template <> MANTID_KERNEL_DLL void PropertyWithValue<std::string>::saveProperty(
 template <> MANTID_KERNEL_DLL void PropertyWithValue<std::vector<double>>::saveProperty(Nexus::File *file);
 template <> MANTID_KERNEL_DLL void PropertyWithValue<std::vector<int32_t>>::saveProperty(Nexus::File *file);
 
-template <typename TYPE> Logger PropertyWithValue<TYPE>::g_logger("PropertyWithValue");
-
 } // namespace Kernel
 } // namespace Mantid
