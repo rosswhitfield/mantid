@@ -83,6 +83,7 @@ private:
   IValidator_sptr m_validator;
 };
 
+// Explicit template specializations for saveProperty
 template <> MANTID_KERNEL_DLL void PropertyWithValue<float>::saveProperty(Nexus::File *file);
 template <> MANTID_KERNEL_DLL void PropertyWithValue<double>::saveProperty(Nexus::File *file);
 template <> MANTID_KERNEL_DLL void PropertyWithValue<int32_t>::saveProperty(Nexus::File *file);
