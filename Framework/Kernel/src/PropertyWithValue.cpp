@@ -34,50 +34,6 @@ PROPERTYWITHVALUE_SAVEPROPERTY(std::string)
 PROPERTYWITHVALUE_SAVEPROPERTY(std::vector<double>)
 PROPERTYWITHVALUE_SAVEPROPERTY(std::vector<int32_t>)
 
-// Explicit static logger instantiations
-#define PROPERTYWITHVALUE_LOGGER(type) template <> Logger PropertyWithValue<type>::g_logger("PropertyWithValue");
-
-PROPERTYWITHVALUE_LOGGER(uint16_t)
-PROPERTYWITHVALUE_LOGGER(bool)
-PROPERTYWITHVALUE_LOGGER(OptionalBool)
-PROPERTYWITHVALUE_LOGGER(float)
-PROPERTYWITHVALUE_LOGGER(double)
-PROPERTYWITHVALUE_LOGGER(int32_t)
-PROPERTYWITHVALUE_LOGGER(uint32_t)
-PROPERTYWITHVALUE_LOGGER(int64_t)
-PROPERTYWITHVALUE_LOGGER(uint64_t)
-PROPERTYWITHVALUE_LOGGER(std::string)
-PROPERTYWITHVALUE_LOGGER(std::vector<float>)
-PROPERTYWITHVALUE_LOGGER(std::vector<double>)
-PROPERTYWITHVALUE_LOGGER(std::vector<int32_t>)
-PROPERTYWITHVALUE_LOGGER(std::vector<uint16_t>)
-PROPERTYWITHVALUE_LOGGER(std::vector<uint32_t>)
-PROPERTYWITHVALUE_LOGGER(std::vector<int64_t>)
-PROPERTYWITHVALUE_LOGGER(std::vector<uint64_t>)
-PROPERTYWITHVALUE_LOGGER(std::vector<bool>)
-PROPERTYWITHVALUE_LOGGER(std::vector<OptionalBool>)
-PROPERTYWITHVALUE_LOGGER(std::vector<std::string>)
-PROPERTYWITHVALUE_LOGGER(Matrix<float>)
-PROPERTYWITHVALUE_LOGGER(Matrix<double>)
-PROPERTYWITHVALUE_LOGGER(Matrix<int>)
-PROPERTYWITHVALUE_LOGGER(std::vector<std::vector<int32_t>>)
-PROPERTYWITHVALUE_LOGGER(std::vector<std::vector<std::string>>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<PropertyManager>)
-#if defined(_WIN32) || defined(__clang__) && defined(__APPLE__)
-PROPERTYWITHVALUE_LOGGER(long)
-PROPERTYWITHVALUE_LOGGER(unsigned long)
-PROPERTYWITHVALUE_LOGGER(std::vector<long>)
-PROPERTYWITHVALUE_LOGGER(std::vector<unsigned long>)
-PROPERTYWITHVALUE_LOGGER(std::vector<std::vector<long>>)
-#endif
-#ifdef __linux__
-PROPERTYWITHVALUE_LOGGER(long long)
-PROPERTYWITHVALUE_LOGGER(unsigned long long)
-PROPERTYWITHVALUE_LOGGER(std::vector<long long>)
-PROPERTYWITHVALUE_LOGGER(std::vector<unsigned long long>)
-PROPERTYWITHVALUE_LOGGER(std::vector<std::vector<long long>>)
-#endif
-
 /// @cond
 template class MANTID_KERNEL_DLL PropertyWithValue<uint16_t>;
 template class MANTID_KERNEL_DLL PropertyWithValue<bool>;

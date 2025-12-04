@@ -26,24 +26,6 @@
 
 namespace Mantid::Kernel {
 
-// Explicit static logger instantiations
-#define PROPERTYWITHVALUE_LOGGER(type) template <> Logger PropertyWithValue<type>::g_logger("PropertyWithValue");
-
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::IAlgorithm>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::IEventWorkspace>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::IFunction>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::IMaskWorkspace>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::IMDEventWorkspace>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::IMDHistoWorkspace>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::IMDWorkspace>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::IPeaksWorkspace>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::ISplittersWorkspace>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::ITableWorkspace>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::MatrixWorkspace>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::Workspace>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::WorkspaceGroup>)
-PROPERTYWITHVALUE_LOGGER(std::shared_ptr<API::ExperimentInfo>)
-
 /// @cond
 template class MANTID_API_DLL PropertyWithValue<std::shared_ptr<API::IAlgorithm>>;
 template class MANTID_API_DLL PropertyWithValue<std::shared_ptr<API::IEventWorkspace>>;
