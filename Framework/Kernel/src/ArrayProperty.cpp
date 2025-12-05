@@ -96,6 +96,9 @@ template <typename T> std::string ArrayProperty<T>::setValue(const std::string &
 template class ArrayProperty<bool>;
 template class ArrayProperty<int>;
 template class ArrayProperty<long long>;
+#if defined(__APPLE__) && defined(__clang__)
+template class ArrayProperty<long>;
+#endif
 #if !(defined(__APPLE__) && defined(__clang__))
 template class ArrayProperty<int64_t>;
 #endif
