@@ -21,11 +21,15 @@ namespace Mantid::Kernel {
 template class PropertyWithValue<bool>;
 template class PropertyWithValue<int>;
 template class PropertyWithValue<long long>;
+#if !defined(__APPLE__) || !defined(__clang__)
 template class PropertyWithValue<int64_t>;
+#endif
 template class PropertyWithValue<uint16_t>;
 template class PropertyWithValue<uint32_t>;
 template class PropertyWithValue<unsigned long long>;
+#if !defined(__APPLE__) || !defined(__clang__)
 template class PropertyWithValue<uint64_t>;
+#endif
 template class PropertyWithValue<float>;
 template class PropertyWithValue<double>;
 template class PropertyWithValue<std::string>;
@@ -34,11 +38,15 @@ template class PropertyWithValue<std::string>;
 template class PropertyWithValue<std::vector<bool>>;
 template class PropertyWithValue<std::vector<int>>;
 template class PropertyWithValue<std::vector<long long>>;
+#if !defined(__APPLE__) || !defined(__clang__)
 template class PropertyWithValue<std::vector<int64_t>>;
+#endif
 template class PropertyWithValue<std::vector<uint16_t>>;
 template class PropertyWithValue<std::vector<uint32_t>>;
 template class PropertyWithValue<std::vector<unsigned long long>>;
+#if !defined(__APPLE__) || !defined(__clang__)
 template class PropertyWithValue<std::vector<uint64_t>>;
+#endif
 template class PropertyWithValue<std::vector<float>>;
 template class PropertyWithValue<std::vector<double>>;
 template class PropertyWithValue<std::vector<std::string>>;
