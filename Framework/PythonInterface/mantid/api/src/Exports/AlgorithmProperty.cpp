@@ -6,6 +6,7 @@
 // SPDX - License - Identifier: GPL - 3.0 +
 #include "MantidAPI/AlgorithmProperty.h"
 #include "MantidAPI/IAlgorithm.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidPythonInterface/core/PropertyWithValueExporter.h"
 #include <boost/python/class.hpp>
 #include <boost/python/make_constructor.hpp>
@@ -58,3 +59,8 @@ void export_AlgorithmProperty() {
       .def("__init__", make_constructor(&createPropertyWithValidatorAndDirection, default_call_policies(),
                                         args("name", "validator", "direction")));
 }
+
+// Explicit instantiation for PropertyWithValue<std::shared_ptr<IAlgorithm>> for Python module
+namespace Mantid::Kernel {
+template class PropertyWithValue<std::shared_ptr<Mantid::API::IAlgorithm>>;
+} // namespace Mantid::Kernel
