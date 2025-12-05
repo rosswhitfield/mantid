@@ -133,16 +133,6 @@ template <> Json::Value encodeAsJson(PythonObject const &) {
   throw Exception::NotImplementedError("encodeAsJson(const boost::python::object &)");
 }
 
-/** NOTE:
- *  For mac builds, it is necessary the DLL export occur here.
- *  This declaration normally lives in Framework/Kernel/PropertyWithValue.cpp.  However, because the boost library is
- *  not linked in Kernel, this declaration can only occur in a file inside the PythonInterface layer
- *  For mac builds, this MUST occur inside a source file, and not in the header
- *  For Linux with clang, we also need it in the source file to avoid linking issues
- */
-// Instantiate a copy of the class with our template type so we generate the symbols for the methods in the hxx header.
-template class MANTID_PYTHONINTERFACE_CORE_DLL PropertyWithValue<PythonObject>;
-
 } // namespace Mantid::Kernel
 
 namespace Mantid::PythonInterface {

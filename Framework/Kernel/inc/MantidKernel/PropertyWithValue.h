@@ -83,16 +83,5 @@ private:
   IValidator_sptr m_validator;
 };
 
-// Explicit template specializations for saveProperty
-template <> MANTID_KERNEL_DLL void PropertyWithValue<float>::saveProperty(Nexus::File *file);
-template <> MANTID_KERNEL_DLL void PropertyWithValue<double>::saveProperty(Nexus::File *file);
-template <> MANTID_KERNEL_DLL void PropertyWithValue<int32_t>::saveProperty(Nexus::File *file);
-template <> MANTID_KERNEL_DLL void PropertyWithValue<uint32_t>::saveProperty(Nexus::File *file);
-template <> MANTID_KERNEL_DLL void PropertyWithValue<int64_t>::saveProperty(Nexus::File *file);
-template <> MANTID_KERNEL_DLL void PropertyWithValue<uint64_t>::saveProperty(Nexus::File *file);
-template <> MANTID_KERNEL_DLL void PropertyWithValue<std::string>::saveProperty(Nexus::File *file);
-template <> MANTID_KERNEL_DLL void PropertyWithValue<std::vector<double>>::saveProperty(Nexus::File *file);
-template <> MANTID_KERNEL_DLL void PropertyWithValue<std::vector<int32_t>>::saveProperty(Nexus::File *file);
-
 } // namespace Kernel
 } // namespace Mantid
