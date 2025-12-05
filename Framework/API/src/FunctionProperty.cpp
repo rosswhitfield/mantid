@@ -7,6 +7,7 @@
 #include "MantidAPI/FunctionProperty.h"
 #include "MantidAPI/FunctionFactory.h"
 #include "MantidKernel/PropertyHistory.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 
 #include <json/value.h>
 
@@ -125,3 +126,8 @@ bool FunctionProperty::isDefault() const { return m_value == std::shared_ptr<IFu
 const Kernel::PropertyHistory FunctionProperty::createHistory() const { return Kernel::PropertyHistory(this); }
 
 } // namespace Mantid::API
+
+// Explicit instantiation for PropertyWithValue<std::shared_ptr<IFunction>>
+namespace Mantid::Kernel {
+template class PropertyWithValue<std::shared_ptr<Mantid::API::IFunction>>;
+} // namespace Mantid::Kernel

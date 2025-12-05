@@ -5,6 +5,7 @@
 //   Institut Laue - Langevin & CSNS, Institute of High Energy Physics, CAS
 // SPDX - License - Identifier: GPL - 3.0 +
 #include "MantidAPI/ISplittersWorkspace.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidPythonInterface/api/RegisterWorkspacePtrToPython.h"
 #include "MantidPythonInterface/core/GetPointer.h"
 #include <boost/python/class.hpp>
@@ -23,4 +24,9 @@ void export_ISplittersWorkspace() {
 
   // register pointers
   RegisterWorkspacePtrToPython<ISplittersWorkspace>();
+}
+
+// Explicit instantiation for PropertyWithValue<std::shared_ptr<ISplittersWorkspace>> for Python module
+namespace Mantid::Kernel {
+template class PropertyWithValue<std::shared_ptr<Mantid::API::ISplittersWorkspace>>;
 }

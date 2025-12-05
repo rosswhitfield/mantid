@@ -5,6 +5,7 @@
 //   Institut Laue - Langevin & CSNS, Institute of High Energy Physics, CAS
 // SPDX - License - Identifier: GPL - 3.0 +
 #include "MantidAPI/IMDHistoWorkspace.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidPythonInterface/api/WorkspacePropertyExporter.h"
 #include "MantidPythonInterface/core/GetPointer.h"
 
@@ -23,4 +24,8 @@ extern template class WorkspaceProperty<IMDHistoWorkspace>;
 void export_IMDHistoWorkspaceProperty() {
   using Mantid::PythonInterface::WorkspacePropertyExporter;
   WorkspacePropertyExporter<IMDHistoWorkspace>::define("IMDHistoWorkspaceProperty");
+}
+
+namespace Mantid::Kernel {
+template class PropertyWithValue<std::shared_ptr<Mantid::API::IMDHistoWorkspace>>;
 }

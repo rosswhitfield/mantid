@@ -12,6 +12,7 @@
 #include "MantidKernel/MultiFileValidator.h"
 #include "MantidKernel/Property.h"
 #include "MantidKernel/PropertyHelper.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidKernel/VectorHelper.h"
 
 #include <Poco/Path.h>
@@ -432,3 +433,8 @@ std::string MultipleFileProperty::setValueAsMultipleFiles(const std::string &pro
 }
 
 } // namespace Mantid::API
+
+// Explicit instantiation for PropertyWithValue<std::vector<std::vector<std::string>>>
+namespace Mantid::Kernel {
+template class PropertyWithValue<std::vector<std::vector<std::string>>>;
+} // namespace Mantid::Kernel
