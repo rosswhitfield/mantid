@@ -96,12 +96,12 @@ template <typename T> std::string ArrayProperty<T>::setValue(const std::string &
 template class ArrayProperty<bool>;
 template class ArrayProperty<int>;
 template class ArrayProperty<long long>;
-#if !defined(__APPLE__) || !defined(__clang__)
+#if !(defined(__APPLE__) && defined(__clang__))
 template class ArrayProperty<int64_t>;
 #endif
 template class ArrayProperty<uint32_t>;
 template class ArrayProperty<unsigned long long>;
-#if !defined(__APPLE__) || !defined(__clang__)
+#if !(defined(__APPLE__) && defined(__clang__))
 template class ArrayProperty<uint64_t>;
 #endif
 template class ArrayProperty<float>;
