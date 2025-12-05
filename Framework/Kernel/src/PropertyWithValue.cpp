@@ -21,6 +21,9 @@ namespace Mantid::Kernel {
 template class PropertyWithValue<bool>;
 template class PropertyWithValue<int>;
 template class PropertyWithValue<long long>;
+#if defined(__APPLE__) && defined(__clang__)
+template class PropertyWithValue<long>;
+#endif
 #if !(defined(__APPLE__) && defined(__clang__))
 template class PropertyWithValue<int64_t>;
 #endif
