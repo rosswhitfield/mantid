@@ -41,6 +41,9 @@ template class PropertyWithValue<std::string>;
 template class PropertyWithValue<std::vector<bool>>;
 template class PropertyWithValue<std::vector<int>>;
 template class PropertyWithValue<std::vector<long long>>;
+#if defined(__APPLE__) && defined(__clang__)
+template class PropertyWithValue<std::vector<long>>;
+#endif
 #if !(defined(__APPLE__) && defined(__clang__))
 template class PropertyWithValue<std::vector<int64_t>>;
 #endif
