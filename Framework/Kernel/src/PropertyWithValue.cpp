@@ -57,6 +57,13 @@ template class PropertyWithValue<std::vector<float>>;
 template class PropertyWithValue<std::vector<double>>;
 template class PropertyWithValue<std::vector<std::string>>;
 
+// Nested vector types used in tests
+template class PropertyWithValue<std::vector<std::vector<int>>>;
+
+// Matrix types used in MatrixProperty
+template class PropertyWithValue<Matrix<int>>;
+template class PropertyWithValue<Matrix<double>>;
+
 // OptionalBool type used in Python exports
 template class PropertyWithValue<OptionalBool>;
 

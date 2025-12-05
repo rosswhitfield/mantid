@@ -100,6 +100,9 @@ template class ArrayProperty<long long>;
 template class ArrayProperty<int64_t>;
 #endif
 template class ArrayProperty<uint32_t>;
+#if defined(__APPLE__) && defined(__clang__)
+template class ArrayProperty<unsigned long>;
+#endif
 template class ArrayProperty<unsigned long long>;
 #if !(defined(__APPLE__) && defined(__clang__))
 template class ArrayProperty<uint64_t>;
@@ -107,5 +110,8 @@ template class ArrayProperty<uint64_t>;
 template class ArrayProperty<float>;
 template class ArrayProperty<double>;
 template class ArrayProperty<std::string>;
+
+// Nested vector types used in tests
+template class ArrayProperty<std::vector<int>>;
 
 } // namespace Mantid::Kernel

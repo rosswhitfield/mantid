@@ -25,6 +25,8 @@
 #include "MantidGeometry/Instrument/ParameterMap.h"
 #include "MantidGeometry/Instrument/XMLInstrumentParameter.h"
 
+#include "MantidKernel/PropertyWithValue.hxx"
+
 #include "MantidBeamline/ComponentInfo.h"
 #include "MantidBeamline/DetectorInfo.h"
 #include "MantidBeamline/SpectrumInfo.h"
@@ -1361,3 +1363,5 @@ IPropertyManager::getValue<Mantid::API::ExperimentInfo_const_sptr>(const std::st
 }
 
 } // namespace Mantid::Kernel
+
+template class MANTID_API_DLL Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::API::ExperimentInfo>>;

@@ -34,6 +34,10 @@ MatrixProperty<TYPE>::MatrixProperty(const MatrixProperty &rhs) : PropertyWithVa
 /// Destructor
 template <typename TYPE> MatrixProperty<TYPE>::~MatrixProperty() = default;
 
+// Explicit template instantiations with DLL export
+template class MANTID_KERNEL_DLL MatrixProperty<int>;
+template class MANTID_KERNEL_DLL MatrixProperty<double>;
+
 } // namespace Mantid::Kernel
 
 ///@cond
