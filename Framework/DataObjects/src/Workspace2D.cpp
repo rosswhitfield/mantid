@@ -12,6 +12,7 @@
 #include "MantidHistogramData/LinearGenerator.h"
 #include "MantidKernel/Exception.h"
 #include "MantidKernel/IPropertyManager.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidKernel/VectorHelper.h"
 
 #include <algorithm>
@@ -381,3 +382,5 @@ IPropertyManager::getValue<Mantid::DataObjects::Workspace2D_const_sptr>(const st
   }
 }
 } // namespace Mantid::Kernel
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::Workspace2D>>;

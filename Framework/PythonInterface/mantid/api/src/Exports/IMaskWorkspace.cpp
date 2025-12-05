@@ -5,6 +5,7 @@
 //   Institut Laue - Langevin & CSNS, Institute of High Energy Physics, CAS
 // SPDX - License - Identifier: GPL - 3.0 +
 #include "MantidAPI/IMaskWorkspace.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidKernel/WarningSuppressions.h"
 #include "MantidPythonInterface/api/RegisterWorkspacePtrToPython.h"
 #include "MantidPythonInterface/core/GetPointer.h"
@@ -43,4 +44,9 @@ void export_IMaskWorkspace() {
 
   // register pointers - required to map between C++ type T and python type
   RegisterWorkspacePtrToPython<IMaskWorkspace>();
+}
+
+// Explicit instantiation for PropertyWithValue<std::shared_ptr<IMaskWorkspace>> for Python module
+namespace Mantid::Kernel {
+template class PropertyWithValue<std::shared_ptr<Mantid::API::IMaskWorkspace>>;
 }

@@ -8,6 +8,7 @@
 #include "MantidAPI/ColumnFactory.h"
 #include "MantidAPI/WorkspaceFactory.h"
 #include "MantidKernel/Logger.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 
 #include <queue>
 
@@ -328,3 +329,5 @@ IPropertyManager::getValue<DataObjects::TableWorkspace_const_sptr>(const std::st
 } // namespace Mantid::Kernel
 
 ///\endcond TEMPLATE
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::TableWorkspace>>;

@@ -11,6 +11,7 @@
 #include "MantidDataObjects/GroupingWorkspace.h"
 
 #include "MantidKernel/IPropertyManager.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 
 using std::size_t;
 using namespace Mantid::API;
@@ -164,3 +165,5 @@ IPropertyManager::getValue<Mantid::DataObjects::GroupingWorkspace_const_sptr>(co
 } // namespace Mantid::Kernel
 
 ///\endcond TEMPLATE
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::GroupingWorkspace>>;
