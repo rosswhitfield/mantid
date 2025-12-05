@@ -39,13 +39,18 @@ PythonObjectProperty *createPythonObjectProperty(std::string const &name, boost:
 } // namespace
 
 void export_PythonObjectProperty() {
-  // export base class
+  // Note: We don't export the base PropertyWithValue<boost::python::object> class
+  // because it's incompatible with the template due to lexical_cast requirements.
+  // PythonObjectProperty provides all necessary method overrides.
   using BaseValueType = boost::python::object;
-  PropertyWithValueExporter<BaseValueType>::define("PythonObjectPropertyWithValue");
 
   // leaf class type
   using BaseClassType = PythonObjectProperty::BaseClass;
-  class_<PythonObjectProperty, bases<BaseClassType>, boost::noncopyable>("PythonObjectProperty", no_init)
+  // Note: We don't use bases<BaseClassType> here because it would require
+  // full instantiation of PropertyWithValue<boost::python::object> which
+  // is incompatible with the template (lexical_cast issues). The C++ inheritance
+  // is sufficient for Python to see it as a Property subclass.
+  class_<PythonObjectProperty, boost::noncopyable>("PythonObjectProperty", no_init)
       // name and direction
       .def(init<const std::string &, const unsigned int>(
           (arg("self"), arg("name"), arg("direction") = Direction::Input), "Construct a PythonObjectProperty"))

@@ -7,6 +7,7 @@
 #include "MantidKernel/PropertyManagerProperty.h"
 #include "MantidKernel/PropertyManager.h"
 #include "MantidKernel/PropertyManagerDataService.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidKernel/PropertyWithValueJSON.h"
 
 #include <json/value.h>
@@ -155,5 +156,8 @@ IPropertyManager::getValue<PropertyManager_const_sptr>(const std::string &name) 
     throw std::runtime_error(message);
   }
 }
+
+// Explicit instantiation of the base class template
+template class MANTID_KERNEL_DLL PropertyWithValue<PropertyManager_sptr>;
 
 } // namespace Mantid::Kernel
