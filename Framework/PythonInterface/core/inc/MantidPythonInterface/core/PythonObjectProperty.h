@@ -50,8 +50,7 @@ public:
    */
   PythonObjectProperty(std::string const &name, PythonObject const &defaultValue,
                        IValidator_sptr const &validator = std::make_shared<NullValidator>(),
-                       unsigned int const direction = Direction::Input)
-      : BaseClass(name, defaultValue, validator, direction) {}
+                       unsigned int const direction = Direction::Input);
 
   /** Constructor that's useful for output properties or inputs with non-None default and no validator.
    *  @param name ::         The name to assign to the property
@@ -59,8 +58,7 @@ public:
    *  @param direction ::    The direction (Input/Output/InOut) of this property
    */
   PythonObjectProperty(std::string const &name, PythonObject const &defaultValue,
-                       unsigned int const direction = Direction::Input)
-      : BaseClass(name, defaultValue, std::make_shared<NullValidator>(), direction) {}
+                       unsigned int const direction = Direction::Input);
 
   /** Constructor
    *  Will lead to the property having default value of None
@@ -69,16 +67,14 @@ public:
    *  @param direction :: The direction (Input/Output/InOut) of this property
    */
   PythonObjectProperty(std::string const &name, IValidator_sptr const &validator,
-                       unsigned int const direction = Direction::Input)
-      : BaseClass(name, PythonObject(), validator, direction) {}
+                       unsigned int const direction = Direction::Input);
 
   /** Constructor that's useful for output properties or inputs with default value None and no validator.
    *  Will lead to the property having a default initial value of None and no validator
    *  @param name ::      The name to assign to the property
    *  @param direction :: The direction (Input/Output/InOut) of this property
    */
-  PythonObjectProperty(std::string const &name, unsigned int const direction = Direction::Input)
-      : BaseClass(name, PythonObject(), std::make_shared<NullValidator>(), direction) {}
+  PythonObjectProperty(std::string const &name, unsigned int const direction = Direction::Input);
 
   /** Constructor from which you can set the property's values through a string:
    *  @param name ::      The name to assign to the property
@@ -89,8 +85,7 @@ public:
    */
   PythonObjectProperty(std::string const &name, std::string const &strvalue,
                        IValidator_sptr const &validator = std::make_shared<NullValidator>(),
-                       unsigned int const direction = Direction::Input)
-      : BaseClass(name, PythonObject(), strvalue, validator, direction) {}
+                       unsigned int const direction = Direction::Input);
 
   /** Copy constructor */
   PythonObjectProperty(PythonObjectProperty const &other) : BaseClass(other) {}

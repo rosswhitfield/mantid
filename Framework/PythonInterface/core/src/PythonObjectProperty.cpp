@@ -7,6 +7,29 @@
 #include "MantidPythonInterface/core/PythonObjectProperty.h"
 #include "MantidJson/Json.h"
 #include "MantidKernel/Exception.h"
+
+// Forward declare the specialization before including .hxx to avoid "after instantiation" errors
+namespace Mantid::Kernel {
+template <>
+PropertyWithValue<boost::python::object>::PropertyWithValue(std::string name, boost::python::object defaultValue,
+                                                            IValidator_sptr validator, unsigned int direction);
+
+template <>
+PropertyWithValue<boost::python::object>::PropertyWithValue(const std::string &name,
+                                                            const boost::python::object &defaultValue,
+                                                            const std::string &defaultValueStr,
+                                                            IValidator_sptr validator, unsigned int direction);
+
+template <>
+PropertyWithValue<boost::python::object> &
+PropertyWithValue<boost::python::object>::operator=(const boost::python::object &value);
+template <> const boost::python::object &PropertyWithValue<boost::python::object>::operator()() const;
+
+template <> PropertyWithValue<boost::python::object>::operator const boost::python::object &() const;
+
+template <> void PropertyWithValue<boost::python::object>::replaceValidator(IValidator_sptr newValidator);
+} // namespace Mantid::Kernel
+
 #include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidKernel/PropertyWithValueJSON.h"
 #include "MantidPythonInterface/core/GlobalInterpreterLock.h"
@@ -77,6 +100,53 @@ bp::object recursiveDictDump(bp::object const &obj, unsigned char depth = 0) {
   return ret;
 }
 } // namespace
+
+namespace Mantid::Kernel {
+
+// Constructor specializations
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL
+PropertyWithValue<boost::python::object>::PropertyWithValue(std::string name, boost::python::object defaultValue,
+                                                            IValidator_sptr validator, unsigned int direction)
+    : Property(std::move(name), typeid(boost::python::object), direction), m_value(defaultValue),
+      m_initialValue(std::move(defaultValue)), m_validator(std::move(validator)) {}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL PropertyWithValue<boost::python::object>::PropertyWithValue(
+    const std::string &name, const boost::python::object &defaultValue, const std::string &defaultValueStr,
+    IValidator_sptr validator, unsigned int direction)
+    : Property(name, typeid(boost::python::object), direction), m_value(defaultValue), m_initialValue(defaultValue),
+      m_validator(std::move(validator)) {
+  // Use the defaultValue parameter instead of trying to parse defaultValueStr
+  // since boost::python::object can't use extractToValueVector
+  UNUSED_ARG(defaultValueStr);
+}
+
+} // namespace Mantid::Kernel
+
+namespace Mantid::PythonInterface {
+
+// PythonObjectProperty constructor implementations
+PythonObjectProperty::PythonObjectProperty(std::string const &name, PythonObject const &defaultValue,
+                                           IValidator_sptr const &validator, unsigned int const direction)
+    : BaseClass(name, defaultValue, validator, direction) {}
+
+PythonObjectProperty::PythonObjectProperty(std::string const &name, PythonObject const &defaultValue,
+                                           unsigned int const direction)
+    : BaseClass(name, defaultValue, std::make_shared<NullValidator>(), direction) {}
+
+PythonObjectProperty::PythonObjectProperty(std::string const &name, IValidator_sptr const &validator,
+                                           unsigned int const direction)
+    : BaseClass(name, PythonObject(), validator, direction) {}
+
+PythonObjectProperty::PythonObjectProperty(std::string const &name, unsigned int const direction)
+    : BaseClass(name, PythonObject(), std::make_shared<NullValidator>(), direction) {}
+
+PythonObjectProperty::PythonObjectProperty(std::string const &name, std::string const &strvalue,
+                                           IValidator_sptr const &validator, unsigned int const direction)
+    : BaseClass(name, PythonObject(), strvalue, validator, direction) {}
+
+} // namespace Mantid::PythonInterface
 
 namespace Mantid::Kernel {
 
@@ -215,3 +285,151 @@ std::string PythonObjectProperty::setDataItem(const std::shared_ptr<Kernel::Data
 bool PythonObjectProperty::isDefault() const { return m_value.is_none(); }
 
 } // namespace Mantid::PythonInterface
+
+// Explicit specializations for PropertyWithValue<boost::python::object>
+// We can't use the full template instantiation because it uses lexical_cast
+// which doesn't work with boost::python::object. Instead, we provide explicit
+// specializations for the virtual methods that boost::python needs.
+namespace Mantid::Kernel {
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL PropertyWithValue<boost::python::object> *
+PropertyWithValue<boost::python::object>::clone() const {
+  return new PropertyWithValue<boost::python::object>(*this);
+}
+
+template <> MANTID_PYTHONINTERFACE_CORE_DLL std::string PropertyWithValue<boost::python::object>::isValid() const {
+  return m_validator->isValid(m_value);
+}
+
+template <> MANTID_PYTHONINTERFACE_CORE_DLL bool PropertyWithValue<boost::python::object>::isDefault() const {
+  // For python objects, we consider it default if it's None
+  return m_value.is_none();
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL void PropertyWithValue<boost::python::object>::saveProperty(Nexus::File * /*file*/) {
+  throw std::invalid_argument("PropertyWithValue::saveProperty - Cannot save '" + this->name() +
+                              "', property type boost::python::object not implemented.");
+}
+
+template <> MANTID_PYTHONINTERFACE_CORE_DLL std::string PropertyWithValue<boost::python::object>::value() const {
+  return toString(m_value);
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL std::string
+PropertyWithValue<boost::python::object>::valueAsPrettyStr(const size_t maxLength, const bool collapseLists) const {
+  return toPrettyString(m_value, maxLength, collapseLists);
+}
+
+template <> MANTID_PYTHONINTERFACE_CORE_DLL Json::Value PropertyWithValue<boost::python::object>::valueAsJson() const {
+  return encodeAsJson((*this)());
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL std::string
+PropertyWithValue<boost::python::object>::setValue(const std::string &value) {
+  // This shouldn't be called directly - PythonObjectProperty overrides it
+  // But we need to provide it for vtable completeness
+  (void)value; // Suppress unused parameter warning
+  throw std::runtime_error("PropertyWithValue<boost::python::object>::setValue should not be called directly. "
+                           "Use PythonObjectProperty::setValue instead.");
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL std::string
+PropertyWithValue<boost::python::object>::setValueFromJson(const Json::Value &value) {
+  // This shouldn't be called directly - PythonObjectProperty overrides it
+  // But we need to provide it for vtable completeness
+  (void)value; // Suppress unused parameter warning
+  throw std::runtime_error("PropertyWithValue<boost::python::object>::setValueFromJson should not be called directly. "
+                           "Use PythonObjectProperty::setValueFromJson instead.");
+}
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL std::string
+PropertyWithValue<boost::python::object>::setValueFromProperty(const Property &right) {
+  // Try to cast to the same type and copy the value
+  if (auto prop = dynamic_cast<const PropertyWithValue<boost::python::object> *>(&right)) {
+    m_value = prop->m_value;
+    return "";
+  } else {
+    // Fall back to string conversion
+    return setValue(right.value());
+  }
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL std::string
+PropertyWithValue<boost::python::object>::setDataItem(const std::shared_ptr<DataItem> & /*data*/) {
+  throw Exception::NotImplementedError(
+      "PropertyWithValue<boost::python::object>::setDataItem - Not implemented for python objects.");
+}
+
+template <> MANTID_PYTHONINTERFACE_CORE_DLL std::string PropertyWithValue<boost::python::object>::getDefault() const {
+  return toString(m_initialValue);
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL bool PropertyWithValue<boost::python::object>::isMultipleSelectionAllowed() {
+  return m_validator->isMultipleSelectionAllowed();
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL std::vector<std::string>
+PropertyWithValue<boost::python::object>::allowedValues() const {
+  return determineAllowedValues(m_value, *m_validator);
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL PropertyWithValue<boost::python::object> &
+PropertyWithValue<boost::python::object>::operator+=(Property const *right) {
+  // Adding python objects doesn't make much sense, but we provide this for vtable completeness
+  // Just ignore it
+  (void)right;
+  return *this;
+}
+
+template <> MANTID_PYTHONINTERFACE_CORE_DLL int PropertyWithValue<boost::python::object>::size() const {
+  // Python object is a single value
+  return 1;
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL PropertyWithValue<boost::python::object> &
+PropertyWithValue<boost::python::object>::operator=(const boost::python::object &value) {
+  boost::python::object oldValue = m_value;
+  m_value = value;
+  std::string problem = this->isValid();
+  if (problem.empty()) {
+    return *this;
+  } else {
+    m_value = oldValue;
+    throw std::invalid_argument("When setting value of property \"" + this->name() + "\": " + problem);
+  }
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL const boost::python::object &
+PropertyWithValue<boost::python::object>::operator()() const {
+  return m_value;
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL PropertyWithValue<boost::python::object>::operator const boost::python::object &()
+    const {
+  return m_value;
+}
+
+template <>
+MANTID_PYTHONINTERFACE_CORE_DLL void
+PropertyWithValue<boost::python::object>::replaceValidator(IValidator_sptr newValidator) {
+  m_validator = newValidator;
+}
+
+// These template specializations are already provided earlier in this file:
+// - toString<PythonObject>
+// - toPrettyString<PythonObject>
+// - encodeAsJson<PythonObject>
+
+} // namespace Mantid::Kernel

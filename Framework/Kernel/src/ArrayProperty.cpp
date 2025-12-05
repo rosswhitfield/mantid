@@ -92,4 +92,16 @@ template <typename T> std::string ArrayProperty<T>::setValue(const std::string &
   return PropertyWithValue<std::vector<T>>::setValue(value);
 }
 
+// Explicit instantiations
+template class ArrayProperty<bool>;
+template class ArrayProperty<int>;
+template class ArrayProperty<long long>;
+template class ArrayProperty<int64_t>;
+template class ArrayProperty<uint32_t>;
+template class ArrayProperty<unsigned long long>;
+template class ArrayProperty<uint64_t>;
+template class ArrayProperty<float>;
+template class ArrayProperty<double>;
+template class ArrayProperty<std::string>;
+
 } // namespace Mantid::Kernel
