@@ -22,6 +22,7 @@
 #include "MantidKernel/FunctionTask.h"
 #include "MantidKernel/IPropertyManager.h"
 #include "MantidKernel/MultiThreaded.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidKernel/TimeSeriesProperty.h"
 
 #include "tbb/parallel_for.h"
@@ -746,3 +747,8 @@ IPropertyManager::getValue<Mantid::DataObjects::EventWorkspace_const_sptr>(const
   }
 }
 } // namespace Mantid::Kernel
+
+// Explicit instantiation for PropertyWithValue<std::shared_ptr<EventWorkspace>>
+namespace Mantid::Kernel {
+template class PropertyWithValue<std::shared_ptr<Mantid::DataObjects::EventWorkspace>>;
+}

@@ -8,6 +8,7 @@
 #include "MantidAPI/Column.h"
 #include "MantidAPI/TableRow.h"
 #include "MantidKernel/IPropertyManager.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 
 using namespace Mantid::Kernel;
 using namespace Mantid::API;
@@ -99,3 +100,5 @@ IPropertyManager::getValue<Mantid::DataObjects::SplittersWorkspace_const_sptr>(c
 
 } // namespace Mantid::Kernel
 ///\endcond
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::SplittersWorkspace>>;

@@ -11,6 +11,7 @@
 #include "MantidAPI/WorkspaceFactory.h"
 #include "MantidDataObjects/MaskWorkspace.h"
 #include "MantidKernel/IPropertyManager.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 
 namespace Mantid::DataObjects {
 using Mantid::API::SpectrumInfo;
@@ -420,3 +421,5 @@ IPropertyManager::getValue<Mantid::DataObjects::MaskWorkspace_const_sptr>(const 
 } // namespace Mantid::Kernel
 
 ///\endcond TEMPLATE
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::MaskWorkspace>>;

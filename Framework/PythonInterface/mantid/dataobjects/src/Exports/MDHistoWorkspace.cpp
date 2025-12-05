@@ -5,6 +5,7 @@
 //   Institut Laue - Langevin & CSNS, Institute of High Energy Physics, CAS
 // SPDX - License - Identifier: GPL - 3.0 +
 #include "MantidDataObjects/MDHistoWorkspace.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidPythonInterface/api/RegisterWorkspacePtrToPython.h"
 #include "MantidPythonInterface/core/GetPointer.h"
 
@@ -23,3 +24,5 @@ void export_MDHistoWorkspace() {
   // register pointers
   RegisterWorkspacePtrToPython<MDHistoWorkspace>();
 }
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::MDHistoWorkspace>>;

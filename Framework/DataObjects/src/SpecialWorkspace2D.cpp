@@ -8,6 +8,7 @@
 #include "MantidAPI/SpectraAxis.h"
 #include "MantidAPI/WorkspaceFactory.h"
 #include "MantidKernel/IPropertyManager.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 
 #include <fstream>
 #include <sstream>
@@ -426,3 +427,5 @@ IPropertyManager::getValue<Mantid::DataObjects::SpecialWorkspace2D_const_sptr>(c
 } // namespace Mantid::Kernel
 
 /// @endcond TEMPLATE
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::SpecialWorkspace2D>>;

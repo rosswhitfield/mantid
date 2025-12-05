@@ -12,6 +12,7 @@
 #include "MantidGeometry/Instrument/Goniometer.h"
 #include "MantidKernel/IPropertyManager.h"
 #include "MantidKernel/Logger.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidKernel/UnitConversion.h"
 #include "MantidNexus/NexusFile.h"
 
@@ -716,3 +717,5 @@ IPropertyManager::getValue<Mantid::DataObjects::LeanElasticPeaksWorkspace_const_
 } // namespace Mantid::Kernel
 
 ///\endcond TEMPLATE
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::LeanElasticPeaksWorkspace>>;

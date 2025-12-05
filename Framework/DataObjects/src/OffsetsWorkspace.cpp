@@ -11,6 +11,7 @@
 #include "MantidDataObjects/OffsetsWorkspace.h"
 
 #include "MantidKernel/IPropertyManager.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 
 namespace Mantid::DataObjects {
 // Register the workspace
@@ -60,3 +61,5 @@ IPropertyManager::getValue<Mantid::DataObjects::OffsetsWorkspace_const_sptr>(con
 } // namespace Mantid::Kernel
 
 /// @endcond TEMPLATE
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::OffsetsWorkspace>>;

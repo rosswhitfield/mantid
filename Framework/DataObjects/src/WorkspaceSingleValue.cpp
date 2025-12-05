@@ -9,6 +9,7 @@
 #include "MantidAPI/SpectraAxis.h"
 #include "MantidAPI/WorkspaceFactory.h"
 #include "MantidKernel/IPropertyManager.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 
 namespace Mantid::DataObjects {
 
@@ -102,3 +103,5 @@ IPropertyManager::getValue<Mantid::DataObjects::WorkspaceSingleValue_const_sptr>
 }
 
 } // namespace Mantid::Kernel
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::WorkspaceSingleValue>>;

@@ -5,6 +5,7 @@
 //   Institut Laue - Langevin & CSNS, Institute of High Energy Physics, CAS
 // SPDX - License - Identifier: GPL - 3.0 +
 #include "MantidDataObjects/RebinnedOutput.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidPythonInterface/api/RegisterWorkspacePtrToPython.h"
 #include "MantidPythonInterface/core/Converters/NDArrayToVector.h"
 #include "MantidPythonInterface/core/Converters/PySequenceToVector.h"
@@ -83,3 +84,5 @@ void export_RebinnedOutput() {
   // register pointers
   RegisterWorkspacePtrToPython<RebinnedOutput>();
 }
+
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::DataObjects::RebinnedOutput>>;

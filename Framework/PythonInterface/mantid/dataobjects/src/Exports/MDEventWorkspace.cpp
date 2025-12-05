@@ -7,6 +7,7 @@
 #include "MantidDataObjects/MDEventWorkspace.h"
 #include "MantidDataObjects/MDEvent.h"
 #include "MantidDataObjects/MDLeanEvent.h"
+#include "MantidKernel/PropertyWithValue.hxx"
 #include "MantidPythonInterface/api/RegisterWorkspacePtrToPython.h"
 #include "MantidPythonInterface/core/GetPointer.h"
 
@@ -61,3 +62,41 @@ void export_MDEventWorkspaces() {
   BOOST_PP_REPEAT_FROM_TO(1, 10, DECL, MDEvent)
 #undef DECL
 }
+
+// Explicit template instantiations for PropertyWithValue
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDLeanEvent<1>, 1>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDLeanEvent<2>, 2>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDLeanEvent<3>, 3>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDLeanEvent<4>, 4>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDLeanEvent<5>, 5>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDLeanEvent<6>, 6>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDLeanEvent<7>, 7>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDLeanEvent<8>, 8>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDLeanEvent<9>, 9>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDEvent<1>, 1>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDEvent<2>, 2>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDEvent<3>, 3>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDEvent<4>, 4>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDEvent<5>, 5>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDEvent<6>, 6>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDEvent<7>, 7>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDEvent<8>, 8>>>;
+template class Mantid::Kernel::PropertyWithValue<
+    std::shared_ptr<Mantid::DataObjects::MDEventWorkspace<Mantid::DataObjects::MDEvent<9>, 9>>>;
