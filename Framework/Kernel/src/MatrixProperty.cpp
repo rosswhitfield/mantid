@@ -34,12 +34,6 @@ MatrixProperty<TYPE>::MatrixProperty(const MatrixProperty &rhs) : PropertyWithVa
 /// Destructor
 template <typename TYPE> MatrixProperty<TYPE>::~MatrixProperty() = default;
 
-///@cond
-// Symbol definitions
-template class MANTID_KERNEL_DLL MatrixProperty<double>;
-template class MANTID_KERNEL_DLL MatrixProperty<int>;
-template class MANTID_KERNEL_DLL MatrixProperty<float>;
-///@endcond
 } // namespace Mantid::Kernel
 
 ///@cond

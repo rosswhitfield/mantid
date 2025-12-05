@@ -92,35 +92,4 @@ template <typename T> std::string ArrayProperty<T>::setValue(const std::string &
   return PropertyWithValue<std::vector<T>>::setValue(value);
 }
 
-template <typename T> void ArrayProperty<T>::visualStudioC4661Workaround() {}
-
-// Explicit template instantiation definitions
-// export macro not needed for int32_t due to explicit specialization in header.
-template class ArrayProperty<int32_t>;
-
-template class DLLExport ArrayProperty<uint32_t>;
-template class DLLExport ArrayProperty<int64_t>;
-template class DLLExport ArrayProperty<uint64_t>;
-template class DLLExport ArrayProperty<bool>;
-template class DLLExport ArrayProperty<float>;
-template class DLLExport ArrayProperty<double>;
-template class DLLExport ArrayProperty<std::string>;
-
-template class DLLExport ArrayProperty<std::vector<int32_t>>;
-template class DLLExport ArrayProperty<std::vector<uint32_t>>;
-template class DLLExport ArrayProperty<std::vector<int64_t>>;
-template class DLLExport ArrayProperty<std::vector<uint64_t>>;
-template class DLLExport ArrayProperty<std::vector<float>>;
-template class DLLExport ArrayProperty<std::vector<double>>;
-template class DLLExport ArrayProperty<std::vector<std::string>>;
-
-#if defined(_WIN32) || defined(__clang__) && defined(__APPLE__)
-template class DLLExport ArrayProperty<long>;
-template class DLLExport ArrayProperty<unsigned long>;
-template class DLLExport ArrayProperty<std::vector<long>>;
-template class DLLExport ArrayProperty<std::vector<unsigned long>>;
-#endif
-
-template <> MANTID_KERNEL_DLL void ArrayProperty<int>::visualStudioC4661Workaround() {}
-
 } // namespace Mantid::Kernel
