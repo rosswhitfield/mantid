@@ -17,6 +17,63 @@
 
 namespace Mantid::Kernel {
 
+// Specializations for saveProperty to support Nexus file saving
+// These MUST come before the explicit instantiations below
+
+template <> void PropertyWithValue<int>::saveProperty(Nexus::File *file) {
+  file->makeGroup(this->name(), "NXlog", true);
+  file->writeData("value", m_value);
+  file->openData("value");
+  file->putAttr("units", this->units());
+  file->closeData();
+  file->closeGroup();
+}
+
+template <> void PropertyWithValue<uint32_t>::saveProperty(Nexus::File *file) {
+  file->makeGroup(this->name(), "NXlog", true);
+  file->writeData("value", m_value);
+  file->openData("value");
+  file->putAttr("units", this->units());
+  file->closeData();
+  file->closeGroup();
+}
+
+template <> void PropertyWithValue<float>::saveProperty(Nexus::File *file) {
+  file->makeGroup(this->name(), "NXlog", true);
+  file->writeData("value", m_value);
+  file->openData("value");
+  file->putAttr("units", this->units());
+  file->closeData();
+  file->closeGroup();
+}
+
+template <> void PropertyWithValue<double>::saveProperty(Nexus::File *file) {
+  file->makeGroup(this->name(), "NXlog", true);
+  file->writeData("value", m_value);
+  file->openData("value");
+  file->putAttr("units", this->units());
+  file->closeData();
+  file->closeGroup();
+}
+
+template <> void PropertyWithValue<std::string>::saveProperty(Nexus::File *file) {
+  file->makeGroup(this->name(), "NXlog", true);
+  file->writeData("value", m_value);
+  file->openData("value");
+  file->putAttr("units", this->units());
+  file->closeData();
+  file->closeGroup();
+}
+
+template <> void PropertyWithValue<std::vector<double>>::saveProperty(Nexus::File *file) {
+  file->makeGroup(this->name(), "NXlog", true);
+  file->writeData("value", m_value);
+  file->openData("value");
+  file->putAttr("units", this->units());
+  file->closeData();
+  file->closeGroup();
+}
+
 // Explicit instantiations for basic types
 template class PropertyWithValue<bool>;
 template class PropertyWithValue<int>;
