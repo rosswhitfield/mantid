@@ -10,6 +10,7 @@
 #include "MantidAPI/AlgorithmProperty.h"
 #include "MantidAPI/Algorithm.h"
 #include "MantidKernel/PropertyWithValue.h"
+
 #include "MantidKernel/PropertyWithValue.hxx"
 
 #include <json/value.h>
@@ -105,5 +106,5 @@ std::string AlgorithmProperty::setBaseValue(const AlgorithmProperty::HeldType &a
 
 // Explicit instantiation for PropertyWithValue<std::shared_ptr<IAlgorithm>>
 namespace Mantid::Kernel {
-template class MANTID_API_DLL PropertyWithValue<std::shared_ptr<Mantid::API::IAlgorithm>>;
+template class PropertyWithValue<std::shared_ptr<Mantid::API::IAlgorithm>>;
 } // namespace Mantid::Kernel
