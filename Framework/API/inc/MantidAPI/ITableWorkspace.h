@@ -29,6 +29,19 @@ namespace Mantid {
 //----------------------------------------------------------------------
 // Forward declarations
 //----------------------------------------------------------------------
+namespace Kernel {
+template <typename TYPE> class PropertyWithValue;
+}
+
+namespace API {
+class ITableWorkspace;
+}
+
+// Inform compiler that PropertyWithValue<std::shared_ptr<ITableWorkspace>>
+// is explicitly instantiated in WorkspaceProperty.cpp
+namespace Kernel {
+extern template class MANTID_API_DLL PropertyWithValue<std::shared_ptr<API::ITableWorkspace>>;
+}
 
 namespace API {
 
