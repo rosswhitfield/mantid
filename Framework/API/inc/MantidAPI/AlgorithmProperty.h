@@ -14,11 +14,22 @@
 #include <memory>
 
 namespace Mantid {
+// Inform compiler that PropertyWithValue<std::shared_ptr<API::IAlgorithm>>
+// is explicitly instantiated in AlgorithmProperty.cpp
+namespace Kernel {
+template <typename TYPE> class PropertyWithValue;
+}
+namespace API {
+class IAlgorithm;
+}
+namespace Kernel {
+extern template class MANTID_API_DLL PropertyWithValue<std::shared_ptr<API::IAlgorithm>>;
+}
+
 namespace API {
 //-------------------------------------------------------------------------
 // Forward declarations
 //-------------------------------------------------------------------------
-class IAlgorithm;
 
 #ifdef _WIN32
 #pragma warning(push)
