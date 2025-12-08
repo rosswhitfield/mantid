@@ -39,17 +39,16 @@ bool convertSingleValueToDouble(const Property *property, double &value) {
   // Order these with double and int first, and less likely options later.
   // The first one to succeed short-circuits and the value is returned.
   // If all fail, returns false.
-  return convertSingleValue<double>(property, value) || convertSingleValue<int>(property, value) ||
-         convertSingleValue<int32_t>(property, value) || convertSingleValue<int64_t>(property, value) ||
-         convertSingleValue<uint32_t>(property, value) || convertSingleValue<uint64_t>(property, value) ||
-         convertSingleValue<float>(property, value);
+  return convertSingleValue<double>(property, value) || convertSingleValue<int32_t>(property, value) ||
+         convertSingleValue<int64_t>(property, value) || convertSingleValue<uint32_t>(property, value) ||
+         convertSingleValue<uint64_t>(property, value) || convertSingleValue<float>(property, value);
 }
 
 /// Templated method to convert time series property to single double
 template <typename T>
 bool convertTimeSeriesToDouble(const Property *property, double &value, const Math::StatisticType &function,
                                const Kernel::TimeROI *timeRoi = nullptr) {
-  if (const auto *log = dynamic_cast<const TimeSeriesProperty<T> *>(property)) {
+  if (const auto *log = dynamic_cast<const ITimeSeriesProperty *>(property)) {
     value = log->extractStatistic(function, timeRoi);
     return true;
   } else {
@@ -71,7 +70,6 @@ bool convertPropertyToDouble(const Property *property, double &value, const Math
   // The first one to succeed short-circuits and the value is returned.
   // If all fail, returns false.
   return convertPropertyToDouble<double>(property, value, function, timeRoi) ||
-         convertPropertyToDouble<int>(property, value, function, timeRoi) ||
          convertPropertyToDouble<int32_t>(property, value, function, timeRoi) ||
          convertPropertyToDouble<int64_t>(property, value, function, timeRoi) ||
          convertPropertyToDouble<uint32_t>(property, value, function, timeRoi) ||
