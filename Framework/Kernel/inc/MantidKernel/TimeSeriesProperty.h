@@ -386,5 +386,24 @@ protected:
   mutable TimeSeriesSortStatus m_propSortedFlag;
 };
 
+// Explicit template instantiation declarations
+extern template class MANTID_KERNEL_DLL TimeValueUnit<int32_t>;
+extern template class MANTID_KERNEL_DLL TimeValueUnit<int64_t>;
+extern template class MANTID_KERNEL_DLL TimeValueUnit<uint32_t>;
+extern template class MANTID_KERNEL_DLL TimeValueUnit<uint64_t>;
+extern template class MANTID_KERNEL_DLL TimeValueUnit<float>;
+extern template class MANTID_KERNEL_DLL TimeValueUnit<double>;
+extern template class MANTID_KERNEL_DLL TimeValueUnit<std::string>;
+extern template class MANTID_KERNEL_DLL TimeValueUnit<bool>;
+
+extern template class MANTID_KERNEL_DLL TimeSeriesProperty<int32_t>;
+extern template class MANTID_KERNEL_DLL TimeSeriesProperty<int64_t>;
+extern template class MANTID_KERNEL_DLL TimeSeriesProperty<uint32_t>;
+extern template class MANTID_KERNEL_DLL TimeSeriesProperty<uint64_t>;
+extern template class MANTID_KERNEL_DLL TimeSeriesProperty<float>;
+extern template class MANTID_KERNEL_DLL TimeSeriesProperty<double>;
+extern template class MANTID_KERNEL_DLL TimeSeriesProperty<std::string>;
+extern template class MANTID_KERNEL_DLL TimeSeriesProperty<bool>;
+
 } // namespace Kernel
 } // namespace Mantid
