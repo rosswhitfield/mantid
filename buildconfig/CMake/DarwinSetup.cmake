@@ -66,3 +66,9 @@ set(ETC_DIR etc)
 set(LIB_DIR lib)
 set(SITE_PACKAGES lib)
 set(PLUGINS_DIR plugins)
+
+# Fix for OpenMP with clang on macOS OpenMP outlined functions create special compilation contexts that may not properly
+# resolve symbols from shared libraries at link time. Allow runtime resolution.
+if(OpenMP_CXX_FOUND)
+  add_link_options("LINKER:-undefined,dynamic_lookup")
+endif()
