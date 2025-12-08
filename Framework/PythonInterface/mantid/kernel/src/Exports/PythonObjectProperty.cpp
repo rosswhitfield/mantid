@@ -24,6 +24,7 @@
 using Mantid::Kernel::Direction;
 using Mantid::Kernel::IValidator_sptr;
 using Mantid::Kernel::NullValidator;
+using Mantid::Kernel::Property;
 using Mantid::Kernel::PropertyWithValue;
 using Mantid::PythonInterface::PropertyWithValueExporter;
 using Mantid::PythonInterface::PythonObjectProperty;
@@ -36,6 +37,11 @@ PythonObjectProperty *createPythonObjectProperty(std::string const &name, boost:
                                                  IValidator_sptr const &validator, unsigned int const direction) {
   return new PythonObjectProperty(name, value, validator, direction);
 }
+
+// Helper function to access the value via the base class operator()
+// This is needed because we can't use bases<PropertyWithValue<boost::python::object>>
+boost::python::object getValue(PythonObjectProperty const &prop) { return prop(); }
+
 } // namespace
 
 void export_PythonObjectProperty() {
@@ -44,11 +50,11 @@ void export_PythonObjectProperty() {
   // PythonObjectProperty provides all necessary method overrides.
   using BaseValueType = boost::python::object;
 
-  // Note: We don't use bases<BaseClassType> here because it would require
-  // full instantiation of PropertyWithValue<boost::python::object> which
-  // is incompatible with the template (lexical_cast issues). The C++ inheritance
-  // is sufficient for Python to see it as a Property subclass.
-  class_<PythonObjectProperty, boost::noncopyable>("PythonObjectProperty", no_init)
+  // We use bases<Property> to expose the inheritance relationship to Python
+  // so that PythonObjectProperty can be passed to declareProperty.
+  // We cannot use bases<PropertyWithValue<boost::python::object>> because
+  // full instantiation of that template is incompatible (lexical_cast issues).
+  class_<PythonObjectProperty, bases<Property>, boost::noncopyable>("PythonObjectProperty", no_init)
       // name and direction
       .def(init<const std::string &, const unsigned int>(
           (arg("self"), arg("name"), arg("direction") = Direction::Input), "Construct a PythonObjectProperty"))
@@ -74,8 +80,7 @@ void export_PythonObjectProperty() {
                             (arg("name"), arg("value"), arg("validator") = IValidator_sptr(new NullValidator),
                              arg("direction") = Direction::Input)))
 
-      .add_property("value", make_function(&PythonObjectProperty::operator(),
-                                           return_value_policy<boost::python::return_by_value>()))
+      .add_property("value", &getValue)
       .def("setValue", static_cast<std::string (PythonObjectProperty::*)(boost::python::object const &)>(
                            &PythonObjectProperty::setValue));
 
