@@ -261,6 +261,11 @@ target_link_libraries(
   PRIVATE Mantid::DataObjects Mantid::Indexing
 )
 
+# Fix for OpenMP with clang on macOS OpenMP outlined functions need runtime symbol resolution
+if(APPLE AND OpenMP_CXX_FOUND)
+  target_link_options(Crystal PRIVATE "LINKER:-undefined,dynamic_lookup")
+endif()
+
 # Add the unit tests directory
 add_subdirectory(test)
 

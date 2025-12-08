@@ -121,22 +121,6 @@ DEFINE_IPROPERTYMANAGER_GETVALUE(std::vector<unsigned long>);
 // Intel 64-bit size_t
 namespace Mantid::Kernel {
 IPropertyManager::TypedValue::operator unsigned long() { return pm.getValue<unsigned long>(prop); }
-
-// Explicit template instantiations for declareProperty to fix OpenMP linking on macOS
-template MANTID_KERNEL_DLL void IPropertyManager::declareProperty<bool>(const std::string &, bool, const std::string &,
-                                                                        const unsigned int);
-template MANTID_KERNEL_DLL void IPropertyManager::declareProperty<double>(const std::string &, double,
-                                                                          const std::string &, const unsigned int);
-template MANTID_KERNEL_DLL void IPropertyManager::declareProperty<int>(const std::string &, int, const std::string &,
-                                                                       const unsigned int);
-template MANTID_KERNEL_DLL void IPropertyManager::declareProperty<std::string>(const std::string &, std::string,
-                                                                               const std::string &, const unsigned int);
-
-// Explicit template instantiations for declareProperty overload without doc string
-template MANTID_KERNEL_DLL void IPropertyManager::declareProperty<bool>(const std::string &, bool, const unsigned int);
-template MANTID_KERNEL_DLL void IPropertyManager::declareProperty<double>(const std::string &, double,
-                                                                          const unsigned int);
-template MANTID_KERNEL_DLL void IPropertyManager::declareProperty<int>(const std::string &, int, const unsigned int);
 #endif
 } // namespace Mantid::Kernel
 /// @endcond
