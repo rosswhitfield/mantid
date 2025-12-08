@@ -20,7 +20,7 @@ namespace Kernel {
 // Forward Declaration
 //----------------------------------------------------------------------
 class SplittingInterval;
-template <typename T> class TimeSeriesProperty;
+
 class TimeROI;
 class LogFilter;
 
