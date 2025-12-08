@@ -2228,7 +2228,9 @@ template <typename TYPE> std::vector<TimeInterval> TimeSeriesProperty<TYPE>::get
 /// @cond
 // -------------------------- Macro to instantiation concrete types
 // --------------------------------
-#define INSTANTIATE(TYPE) template class TimeSeriesProperty<TYPE>;
+#define INSTANTIATE(TYPE)                                                                                              \
+  template class TimeValueUnit<TYPE>;                                                                                  \
+  template class TimeSeriesProperty<TYPE>;
 
 // -------------------------- Concrete instantiation
 // -----------------------------------------------
