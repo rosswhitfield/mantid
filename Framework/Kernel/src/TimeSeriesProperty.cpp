@@ -2232,9 +2232,6 @@ template <typename TYPE> std::vector<TimeInterval> TimeSeriesProperty<TYPE>::get
 
 // -------------------------- Concrete instantiation
 // -----------------------------------------------
-#ifdef __APPLE__
-INSTANTIATE(int)
-#endif
 INSTANTIATE(int32_t)
 INSTANTIATE(int64_t)
 INSTANTIATE(uint32_t)
