@@ -83,5 +83,14 @@ private:
   IValidator_sptr m_validator;
 };
 
+// Forward declarations of explicit template specializations for saveProperty
+// These are defined in PropertyWithValue.cpp
+template <> void PropertyWithValue<int>::saveProperty(Nexus::File *file);
+template <> void PropertyWithValue<uint32_t>::saveProperty(Nexus::File *file);
+template <> void PropertyWithValue<float>::saveProperty(Nexus::File *file);
+template <> void PropertyWithValue<double>::saveProperty(Nexus::File *file);
+template <> void PropertyWithValue<std::string>::saveProperty(Nexus::File *file);
+template <> void PropertyWithValue<std::vector<double>>::saveProperty(Nexus::File *file);
+
 } // namespace Kernel
 } // namespace Mantid
