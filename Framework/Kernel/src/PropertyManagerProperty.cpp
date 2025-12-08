@@ -158,6 +158,6 @@ IPropertyManager::getValue<PropertyManager_const_sptr>(const std::string &name) 
 }
 
 // Explicit instantiation of the base class template
-template class MANTID_KERNEL_DLL PropertyWithValue<PropertyManager_sptr>;
+template class PropertyWithValue<PropertyManager_sptr>;
 
 } // namespace Mantid::Kernel
