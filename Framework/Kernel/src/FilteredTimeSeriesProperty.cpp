@@ -489,13 +489,14 @@ template <typename HeldType> bool FilteredTimeSeriesProperty<HeldType>::operator
 
 // -------------------------- Concrete instantiation
 // -----------------------------------------------
-// Note: std::string and bool are not instantiated here to match TimeSeriesProperty
 INSTANTIATE(int32_t)
 INSTANTIATE(int64_t)
 INSTANTIATE(uint32_t)
 INSTANTIATE(uint64_t)
 INSTANTIATE(float)
 INSTANTIATE(double)
+INSTANTIATE(std::string)
+INSTANTIATE(bool)
 
 ///@endcond
 
