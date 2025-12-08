@@ -11,6 +11,7 @@
 #include "MantidKernel/IValidator.h"
 #include "MantidKernel/NullValidator.h"
 #include "MantidKernel/PropertyWithValue.h"
+#include "MantidKernel/TimeSeriesProperty.h"
 
 #ifndef Q_MOC_RUN
 #include <memory>
