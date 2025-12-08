@@ -44,8 +44,6 @@ void export_PythonObjectProperty() {
   // PythonObjectProperty provides all necessary method overrides.
   using BaseValueType = boost::python::object;
 
-  // leaf class type
-  using BaseClassType = PythonObjectProperty::BaseClass;
   // Note: We don't use bases<BaseClassType> here because it would require
   // full instantiation of PropertyWithValue<boost::python::object> which
   // is incompatible with the template (lexical_cast issues). The C++ inheritance

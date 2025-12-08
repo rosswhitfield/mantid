@@ -1364,4 +1364,4 @@ IPropertyManager::getValue<Mantid::API::ExperimentInfo_const_sptr>(const std::st
 
 } // namespace Mantid::Kernel
 
-template class MANTID_API_DLL Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::API::ExperimentInfo>>;
+template class Mantid::Kernel::PropertyWithValue<std::shared_ptr<Mantid::API::ExperimentInfo>>;
