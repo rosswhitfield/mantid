@@ -2229,8 +2229,8 @@ template <typename TYPE> std::vector<TimeInterval> TimeSeriesProperty<TYPE>::get
 // -------------------------- Macro to instantiation concrete types
 // --------------------------------
 #define INSTANTIATE(TYPE)                                                                                              \
-  template class TimeValueUnit<TYPE>;                                                                                  \
-  template class TimeSeriesProperty<TYPE>;
+  template class MANTID_KERNEL_DLL TimeValueUnit<TYPE>;                                                                \
+  template class MANTID_KERNEL_DLL TimeSeriesProperty<TYPE>;
 
 // -------------------------- Concrete instantiation
 // -----------------------------------------------
