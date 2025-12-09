@@ -159,6 +159,10 @@ template <> std::unique_ptr<TimeSeriesProperty<double>> TimeSeriesProperty<std::
   throw std::runtime_error("Time series property derivative is not defined for strings");
 }
 
+template <> std::unique_ptr<TimeSeriesProperty<double>> TimeSeriesProperty<bool>::getDerivative() const {
+  throw std::runtime_error("Time series property derivative is not defined for booleans");
+}
+
 /**
  * Return the memory used by the property, in bytes
  * */
@@ -518,6 +522,14 @@ void TimeSeriesProperty<std::string>::makeFilterByValue(std::vector<SplittingInt
                                        "properties");
 }
 
+template <>
+void TimeSeriesProperty<bool>::makeFilterByValue(std::vector<SplittingInterval> & /*split*/, double /*min*/,
+                                                 double /*max*/, double /*TimeTolerance*/, bool /*centre*/) const {
+  throw Exception::NotImplementedError("TimeSeriesProperty::makeFilterByValue "
+                                       "is not implemented for bool "
+                                       "properties");
+}
+
 /**
  * Fill a TimeROI that will filter the events by matching
  * log values >= min and <= max. Creates TimeROI where
@@ -635,6 +647,15 @@ TimeROI TimeSeriesProperty<std::string>::makeFilterByValue(double /*min*/, doubl
                                        "properties");
 }
 
+template <>
+TimeROI TimeSeriesProperty<bool>::makeFilterByValue(double /*min*/, double /*max*/, bool /*expand*/,
+                                                    const TimeInterval & /*expandRange*/, double /*TimeTolerance*/,
+                                                    bool /*centre*/, const TimeROI * /*existingROI*/) const {
+  throw Exception::NotImplementedError("TimeSeriesProperty::makeFilterByValue "
+                                       "is not implemented for bool "
+                                       "properties");
+}
+
 /** If the first and/or last values in a log are between min & max, expand and
  * existing TimeSplitter
  *  (created by makeFilterByValue) if necessary to cover the full TimeInterval
@@ -702,6 +723,14 @@ void TimeSeriesProperty<std::string>::expandFilterToRange(std::vector<SplittingI
                                        "properties");
 }
 
+template <>
+void TimeSeriesProperty<bool>::expandFilterToRange(std::vector<SplittingInterval> & /*split*/, double /*min*/,
+                                                   double /*max*/, const TimeInterval & /*range*/) const {
+  throw Exception::NotImplementedError("TimeSeriesProperty::makeFilterByValue "
+                                       "is not implemented for bool "
+                                       "properties");
+}
+
 /** Returns the calculated time weighted average value.
  * @param timeRoi  Object that holds information about when the time measurement was active.
  * @return The time-weighted average value of the log when the time measurement was active.
@@ -732,6 +761,10 @@ template <typename TYPE> double TimeSeriesProperty<TYPE>::timeAverageValue(const
 
 template <> double TimeSeriesProperty<std::string>::timeAverageValue(const TimeROI * /*timeRoi*/) const {
   throw Exception::NotImplementedError("TimeSeriesProperty::timeAverageValue is not implemented for string properties");
+}
+
+template <> double TimeSeriesProperty<bool>::timeAverageValue(const TimeROI * /*timeRoi*/) const {
+  throw Exception::NotImplementedError("TimeSeriesProperty::timeAverageValue is not implemented for bool properties");
 }
 
 /** Calculates the time-weighted average of a property in a filtered range.
@@ -798,6 +831,12 @@ double TimeSeriesProperty<std::string>::averageValueInFilter(const std::vector<T
                                        "implemented for string properties");
 }
 
+template <> double TimeSeriesProperty<bool>::averageValueInFilter(const std::vector<TimeInterval> & /*filter*/) const {
+  throw Exception::NotImplementedError("TimeSeriesProperty::"
+                                       "averageValueInFilter is not "
+                                       "implemented for bool properties");
+}
+
 template <typename TYPE>
 std::pair<double, double>
 TimeSeriesProperty<TYPE>::averageAndStdDevInFilter(const std::vector<TimeInterval> &intervals) const {
@@ -857,6 +896,14 @@ TimeSeriesProperty<std::string>::averageAndStdDevInFilter(const std::vector<Time
                                        "implemented for string properties");
 }
 
+template <>
+std::pair<double, double>
+TimeSeriesProperty<bool>::averageAndStdDevInFilter(const std::vector<TimeInterval> & /*filter*/) const {
+  throw Exception::NotImplementedError("TimeSeriesProperty::"
+                                       "averageAndStdDevInFilter is not "
+                                       "implemented for bool properties");
+}
+
 template <typename TYPE>
 std::pair<double, double> TimeSeriesProperty<TYPE>::timeAverageValueAndStdDev(const Kernel::TimeROI *timeRoi) const {
   // time series with less than two entries are conner cases
@@ -885,6 +932,12 @@ std::pair<double, double>
 TimeSeriesProperty<std::string>::timeAverageValueAndStdDev(const Kernel::TimeROI * /*roi*/) const {
   throw Exception::NotImplementedError(
       "TimeSeriesProperty::timeAverageValueAndStdDev is not implemented for string properties");
+}
+
+template <>
+std::pair<double, double> TimeSeriesProperty<bool>::timeAverageValueAndStdDev(const Kernel::TimeROI * /*roi*/) const {
+  throw Exception::NotImplementedError(
+      "TimeSeriesProperty::timeAverageValueAndStdDev is not implemented for bool properties");
 }
 
 // Re-enable the warnings disabled before makeFilterByValue
@@ -1789,6 +1842,14 @@ TimeSeriesPropertyStatistics TimeSeriesProperty<std::string>::getStatistics(cons
   return out;
 }
 
+template <> TimeSeriesPropertyStatistics TimeSeriesProperty<bool>::getStatistics(const TimeROI * /* roi*/) const {
+  // statistics of a bool property doesn't make sense
+  TimeSeriesPropertyStatistics out;
+  out.setAllToNan();
+
+  return out;
+}
+
 /** Calculate a particular statistical quantity from the values of the time series.
  *  @param selection : Enum indicating the selected statistical quantity.
  *  @param roi : optional pointer to TimeROI object for filtering the time series values.
@@ -1848,6 +1909,14 @@ double TimeSeriesProperty<std::string>::extractStatistic(Math::StatisticType sel
   throw Exception::NotImplementedError("TimeSeriesProperty::"
                                        "extractStatistic is not "
                                        "implemented for string properties");
+}
+
+template <> double TimeSeriesProperty<bool>::extractStatistic(Math::StatisticType selection, const TimeROI *roi) const {
+  UNUSED_ARG(selection);
+  UNUSED_ARG(roi);
+  throw Exception::NotImplementedError("TimeSeriesProperty::"
+                                       "extractStatistic is not "
+                                       "implemented for bool properties");
 }
 
 /*
@@ -2134,6 +2203,16 @@ void TimeSeriesProperty<std::string>::histogramData(const Types::Core::DateAndTi
   UNUSED_ARG(counts);
   throw std::runtime_error("histogramData is not implememnted for time series "
                            "properties containing strings");
+}
+
+template <>
+void TimeSeriesProperty<bool>::histogramData(const Types::Core::DateAndTime &tMin, const Types::Core::DateAndTime &tMax,
+                                             std::vector<double> &counts) const {
+  UNUSED_ARG(tMin);
+  UNUSED_ARG(tMax);
+  UNUSED_ARG(counts);
+  throw std::runtime_error("histogramData is not implememnted for time series "
+                           "properties containing bools");
 }
 
 /**
