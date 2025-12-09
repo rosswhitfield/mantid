@@ -109,14 +109,5 @@ private:
   mutable bool m_filterApplied;
 };
 
-// Explicit template instantiation declarations
-// Note: std::string and bool are omitted to match TimeSeriesProperty
-extern template class MANTID_KERNEL_DLL FilteredTimeSeriesProperty<int32_t>;
-extern template class MANTID_KERNEL_DLL FilteredTimeSeriesProperty<int64_t>;
-extern template class MANTID_KERNEL_DLL FilteredTimeSeriesProperty<uint32_t>;
-extern template class MANTID_KERNEL_DLL FilteredTimeSeriesProperty<uint64_t>;
-extern template class MANTID_KERNEL_DLL FilteredTimeSeriesProperty<float>;
-extern template class MANTID_KERNEL_DLL FilteredTimeSeriesProperty<double>;
-
 } // namespace Kernel
 } // namespace Mantid

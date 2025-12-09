@@ -485,7 +485,7 @@ template <typename HeldType> bool FilteredTimeSeriesProperty<HeldType>::operator
 /// @cond
 // -------------------------- Macro to instantiation concrete types
 // --------------------------------
-#define INSTANTIATE(TYPE) template class MANTID_KERNEL_DLL FilteredTimeSeriesProperty<TYPE>;
+#define INSTANTIATE(TYPE) template class FilteredTimeSeriesProperty<TYPE>;
 
 // -------------------------- Concrete instantiation
 // -----------------------------------------------
