@@ -10,6 +10,7 @@
 #include "MantidKernel/Logger.h"
 #include "MantidKernel/SplittingInterval.h"
 #include "MantidKernel/TimeROI.h"
+#include "MantidKernel/TimeSeriesProperty.h"
 #include <string>
 
 using namespace Mantid::Kernel;

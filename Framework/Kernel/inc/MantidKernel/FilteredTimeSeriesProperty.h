@@ -8,13 +8,14 @@
 
 #include "MantidKernel/DllConfig.h"
 #include "MantidKernel/System.h"
-#include "MantidKernel/TimeSeriesProperty.h"
+#include "MantidKernel/TimeROI.h"
 
 namespace Mantid {
 using namespace Types::Core;
 namespace Kernel {
 
 class SplittingInterval;
+template <class TYPE> class TimeSeriesProperty;
 
 /**
  * Templated class that defines a filtered time series but
