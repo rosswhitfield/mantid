@@ -212,6 +212,7 @@ set(SRC_FILES
     src/XmlHandler.cpp
     src/RotateSampleShape.cpp
     src/AlignAndFocusPowderSlim/NexusLoader.cpp
+    src/AlignAndFocusPowderSlim/ProcessBankTaskBase.cpp
     src/AlignAndFocusPowderSlim/ProcessBankTask.cpp
     src/AlignAndFocusPowderSlim/ProcessBankSplitTask.cpp
     src/AlignAndFocusPowderSlim/ProcessBankSplitFullTimeTask.cpp

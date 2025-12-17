@@ -31,9 +31,9 @@ ProcessBankTask::ProcessBankTask(std::vector<std::string> &bankEntryNames, H5::H
                                  const std::map<detid_t, double> &scale_at_sample, const std::set<detid_t> &masked,
                                  const size_t events_per_chunk, const size_t grainsize_event,
                                  std::vector<PulseROI> pulse_indices, std::shared_ptr<API::Progress> &progress)
-    : m_h5file(h5file), m_bankEntries(bankEntryNames), m_loader(is_time_filtered, pulse_indices), m_wksp(wksp),
-      m_calibration(calibration), m_scale_at_sample(scale_at_sample), m_masked(masked),
-      m_events_per_chunk(events_per_chunk), m_grainsize_event(grainsize_event), m_progress(progress) {}
+    : ProcessBankTaskBase(h5file, bankEntryNames, calibration, scale_at_sample, masked, events_per_chunk,
+                          grainsize_event, progress),
+      m_loader(is_time_filtered, pulse_indices), m_wksp(wksp) {}
 
 void ProcessBankTask::operator()(const tbb::blocked_range<size_t> &range) const {
   auto entry = m_h5file.openGroup("entry"); // type=NXentry
@@ -85,65 +85,24 @@ void ProcessBankTask::operator()(const tbb::blocked_range<size_t> &range) const 
     // read parts of the bank at a time until all events are processed
     while (!eventRanges.empty()) {
       // Create offsets and slab sizes for the next chunk of events.
-      // This will read at most m_events_per_chunk events from the file
-      // and will split the ranges if necessary for the next iteration.
-      std::vector<size_t> offsets;
-      std::vector<size_t> slabsizes;
-
-      size_t total_events_to_read = 0;
-      // Process the event ranges until we reach the desired number of events to read or run out of ranges
-      while (!eventRanges.empty() && total_events_to_read < m_events_per_chunk) {
-        // Get the next event range from the stack
-        auto eventRange = eventRanges.top();
-        eventRanges.pop();
-
-        size_t range_size = eventRange.second - eventRange.first;
-        size_t remaining_chunk = m_events_per_chunk - total_events_to_read;
-
-        // If the range size is larger than the remaining chunk, we need to split it
-        if (range_size > remaining_chunk) {
-          // Split the range: process only part of it now, push the rest back for later
-          offsets.push_back(eventRange.first);
-          slabsizes.push_back(remaining_chunk);
-          total_events_to_read += remaining_chunk;
-          // Push the remainder of the range back to the front for next iteration
-          eventRanges.emplace(eventRange.first + remaining_chunk, eventRange.second);
-          break;
-        } else {
-          offsets.push_back(eventRange.first);
-          slabsizes.push_back(range_size);
-          total_events_to_read += range_size;
-          // Continue to next range
-        }
-      }
+      auto chunk = prepareNextChunk(eventRanges);
 
       // log the event ranges being processed
-      std::ostringstream oss;
-      oss << "Processing " << bankName << " with " << total_events_to_read << " events in the ranges: ";
-      for (size_t i = 0; i < offsets.size(); ++i) {
-        oss << "[" << offsets[i] << ", " << (offsets[i] + slabsizes[i]) << "), ";
-      }
-      oss << "\n";
-      g_log.debug() << oss.str();
+      logChunkInfo(bankName, chunk);
 
       // load detid and tof at the same time
       tbb::parallel_invoke(
           [&] { // load detid
             // event_detid->clear();
-            m_loader.loadData(detID_SDS, event_detid, offsets, slabsizes);
+            m_loader.loadData(detID_SDS, event_detid, chunk.offsets, chunk.slabsizes);
             // immediately find min/max to allow for other things to read disk
             const auto [minval, maxval] = Mantid::Kernel::parallel_minmax(event_detid, m_grainsize_event);
             // only recreate calibration if it doesn't already have the useful information
-            if ((!calibration) || (calibration->idmin() > static_cast<detid_t>(minval)) ||
-                (calibration->idmax() < static_cast<detid_t>(maxval))) {
-              calibration =
-                  std::make_unique<BankCalibration>(static_cast<detid_t>(minval), static_cast<detid_t>(maxval),
-                                                    time_conversion, m_calibration, m_scale_at_sample, m_masked);
-            }
+            updateCalibration(calibration, minval, maxval, time_conversion);
           },
           [&] { // load time-of-flight
             // event_time_of_flight->clear();
-            m_loader.loadData(tof_SDS, event_time_of_flight, offsets, slabsizes);
+            m_loader.loadData(tof_SDS, event_time_of_flight, chunk.offsets, chunk.slabsizes);
           });
 
       // Create a local task for this thread
@@ -158,11 +117,7 @@ void ProcessBankTask::operator()(const tbb::blocked_range<size_t> &range) const 
     }
 
     // copy the data out into the correct spectrum and calculate errors
-    auto &y_values = spectrum.dataY();
-    std::copy(y_temp.cbegin(), y_temp.cend(), y_values.begin());
-    auto &e_values = spectrum.dataE();
-    std::transform(y_temp.cbegin(), y_temp.cend(), e_values.begin(),
-                   [](uint32_t y) { return std::sqrt(static_cast<double>(y)); });
+    copyResultsAndCalculateErrors(spectrum, y_temp);
 
     g_log.debug() << bankName << " stop " << timer << std::endl;
     m_progress->report();
