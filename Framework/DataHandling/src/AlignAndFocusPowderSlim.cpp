@@ -17,6 +17,7 @@
 #include "MantidDataHandling/AlignAndFocusPowderSlim/ProcessBankTask.h"
 #include "MantidDataHandling/LoadEventNexus.h"
 #include "MantidDataObjects/EventList.h"
+#include "MantidDataObjects/GroupingWorkspace.h"
 #include "MantidDataObjects/MaskWorkspace.h"
 #include "MantidDataObjects/SplittersWorkspace.h"
 #include "MantidDataObjects/TableWorkspace.h"
@@ -157,6 +158,9 @@ void AlignAndFocusPowderSlim::init() {
   declareProperty(
       std::make_unique<PropertyWithValue<double>>(PropertyNames::FILTER_TIMESTOP, EMPTY_DBL(), Direction::Input),
       "To only include events before the provided stop time, in seconds (relative to the start of the run).");
+  declareProperty(std::make_unique<WorkspaceProperty<DataObjects::GroupingWorkspace>>(
+                      PropertyNames::GROUPING_WS, "", Direction::Input, API::PropertyMode::Optional),
+                  "A GroupingWorkspace giving the grouping info..");
   declareProperty(std::make_unique<API::WorkspaceProperty<API::Workspace>>(
                       PropertyNames::SPLITTER_WS, "", Direction::Input, API::PropertyMode::Optional),
                   "Input workspace specifying \"splitters\", i.e. time intervals and targets for event filtering. "
@@ -289,6 +293,7 @@ std::map<std::string, std::string> AlignAndFocusPowderSlim::validateInputs() {
     errors[PropertyNames::BLOCK_LOGS] = "Cannot specify both allow and block lists";
   }
 
+<<<<<<< HEAD
   // the focus group position parameters must have same lengths
   std::vector<double> l2s = getProperty(PropertyNames::L2);
   std::vector<double> twoTheta = getProperty(PropertyNames::POLARS);
@@ -304,6 +309,17 @@ std::map<std::string, std::string> AlignAndFocusPowderSlim::validateInputs() {
       errors[PropertyNames::AZIMUTHALS] = strmakef("Azimuthal has inconsistent length %zu", phi.size());
       ;
     }
+=======
+  // For now only support either grouping or splitter workspace, not both at the same time
+  if ((!isDefault(PropertyNames::GROUPING_WS)) && (!isDefault(PropertyNames::SPLITTER_WS))) {
+    errors[PropertyNames::GROUPING_WS] = "Cannot specify both grouping and splitter workspaces";
+    errors[PropertyNames::SPLITTER_WS] = "Cannot specify both grouping and splitter workspaces";
+  } else {
+    DataObjects::GroupingWorkspace_const_sptr groupingWS = this->getProperty(PropertyNames::GROUPING_WS);
+    const auto groupIds = groupingWS->getGroupIDs(false);
+    if (groupIds.size() != NUM_HIST)
+      errors[PropertyNames::GROUPING_WS] = "Grouping workspace have 6 groups, which is not supported";
+>>>>>>> 854b0081b62 (Add GroupingWorkspace input)
   }
 
   return errors;
@@ -373,11 +389,19 @@ void AlignAndFocusPowderSlim::exec() {
 
   // TODO parameters should be read in from a file
   std::map<size_t, std::vector<detid_t>> grouping;
-  constexpr detid_t NUM_DETS_PER_BANK{100000};
-  for (size_t outputSpecNum : std::views::iota(0, 6)) {
-    grouping[outputSpecNum] = std::vector<detid_t>(NUM_DETS_PER_BANK);
-    std::iota(grouping[outputSpecNum].begin(), grouping[outputSpecNum].end(),
-              static_cast<detid_t>(NUM_DETS_PER_BANK * outputSpecNum));
+  DataObjects::GroupingWorkspace_sptr groupingWS = this->getProperty(PropertyNames::GROUPING_WS);
+  if (groupingWS) {
+    const auto groupIds = groupingWS->getGroupIDs(false);
+    for (size_t i = 0; i < groupIds.size(); ++i) {
+      grouping[i] = groupingWS->getDetectorIDsOfGroup(groupIds[i]);
+    }
+  } else {
+    constexpr detid_t NUM_DETS_PER_BANK{100000};
+    for (size_t outputSpecNum : std::views::iota(0, 6)) {
+      grouping[outputSpecNum] = std::vector<detid_t>(NUM_DETS_PER_BANK);
+      std::iota(grouping[outputSpecNum].begin(), grouping[outputSpecNum].end(),
+                static_cast<detid_t>(NUM_DETS_PER_BANK * outputSpecNum));
+    }
   }
 
   // load run metadata

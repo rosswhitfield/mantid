@@ -69,6 +69,7 @@ const std::string FILENAME("Filename");
 const std::string CAL_FILE("CalFileName");
 const std::string FILTER_TIMESTART("FilterByTimeStart");
 const std::string FILTER_TIMESTOP("FilterByTimeStop");
+const std::string GROUPING_WS("GroupingWorkspace");
 const std::string SPLITTER_WS("SplitterWorkspace");
 const std::string SPLITTER_RELATIVE("RelativeTime");
 const std::string CORRECTION_TO_SAMPLE("CorrectionToSample");
