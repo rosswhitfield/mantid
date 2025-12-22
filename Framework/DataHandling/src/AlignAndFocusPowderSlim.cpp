@@ -293,7 +293,6 @@ std::map<std::string, std::string> AlignAndFocusPowderSlim::validateInputs() {
     errors[PropertyNames::BLOCK_LOGS] = "Cannot specify both allow and block lists";
   }
 
-<<<<<<< HEAD
   // the focus group position parameters must have same lengths
   std::vector<double> l2s = getProperty(PropertyNames::L2);
   std::vector<double> twoTheta = getProperty(PropertyNames::POLARS);
@@ -309,17 +308,16 @@ std::map<std::string, std::string> AlignAndFocusPowderSlim::validateInputs() {
       errors[PropertyNames::AZIMUTHALS] = strmakef("Azimuthal has inconsistent length %zu", phi.size());
       ;
     }
-=======
+
   // For now only support either grouping or splitter workspace, not both at the same time
   if ((!isDefault(PropertyNames::GROUPING_WS)) && (!isDefault(PropertyNames::SPLITTER_WS))) {
     errors[PropertyNames::GROUPING_WS] = "Cannot specify both grouping and splitter workspaces";
     errors[PropertyNames::SPLITTER_WS] = "Cannot specify both grouping and splitter workspaces";
-  } else {
+  } else if (!isDefault(PropertyNames::GROUPING_WS)) {
     DataObjects::GroupingWorkspace_const_sptr groupingWS = this->getProperty(PropertyNames::GROUPING_WS);
     const auto groupIds = groupingWS->getGroupIDs(false);
     if (groupIds.size() != NUM_HIST)
-      errors[PropertyNames::GROUPING_WS] = "Grouping workspace have 6 groups, which is not supported";
->>>>>>> 854b0081b62 (Add GroupingWorkspace input)
+      errors[PropertyNames::GROUPING_WS] = "Grouping workspace must have 6 groups";
   }
 
   return errors;
@@ -465,11 +463,19 @@ void AlignAndFocusPowderSlim::exec() {
   g_log.debug() << (DISK_CHUNK / GRAINSIZE_EVENTS) << " threads per chunk\n";
 
   if (timeSplitter.empty()) {
+
+    SpectraProcessingData processingData;
+    const size_t numSpectra = wksp->getNumberHistograms();
+    for (size_t i = 0; i < numSpectra; ++i) {
+      const auto &spectrum = wksp->getSpectrum(i);
+      processingData.binedges.emplace_back(&spectrum.readX());
+      processingData.counts.emplace_back(spectrum.dataY().size());
+    }
     const auto pulse_indices = this->determinePulseIndices(wksp, filterROI);
 
     auto progress = std::make_shared<API::Progress>(this, .17, .9, num_banks_to_read);
-    ProcessBankTask task(bankEntryNames, h5file, is_time_filtered, wksp, m_calibration, m_scale_at_sample, grouping,
-                         m_masked, static_cast<size_t>(DISK_CHUNK), static_cast<size_t>(GRAINSIZE_EVENTS),
+    ProcessBankTask task(bankEntryNames, h5file, is_time_filtered, processingData, m_calibration, m_scale_at_sample,
+                         grouping, m_masked, static_cast<size_t>(DISK_CHUNK), static_cast<size_t>(GRAINSIZE_EVENTS),
                          pulse_indices, progress);
     // generate threads only if appropriate
     if (num_banks_to_read > 1) {
@@ -481,6 +487,16 @@ void AlignAndFocusPowderSlim::exec() {
 
     // close the file so child algorithms can do their thing
     h5file.close();
+
+    // copy data from processingData to wksp
+    for (size_t i = 0; i < numSpectra; ++i) {
+      auto &spectrum = wksp->getSpectrum(i);
+      auto &y_values = spectrum.dataY();
+      std::copy(processingData.counts[i].cbegin(), processingData.counts[i].cend(), y_values.begin());
+      auto &e_values = spectrum.dataE();
+      std::transform(processingData.counts[i].cbegin(), processingData.counts[i].cend(), e_values.begin(),
+                     [](uint32_t y) { return std::sqrt(static_cast<double>(y)); });
+    }
 
     // update the run TimeROI and remove log data outside the time ROI
     wksp->mutableRun().setTimeROI(filterROI);
@@ -564,16 +580,16 @@ void AlignAndFocusPowderSlim::exec() {
 
               const auto pulse_indices = this->determinePulseIndices(target_wksp, target_roi);
 
-              ProcessBankTask task(bankEntryNames, h5file, is_time_filtered, target_wksp, m_calibration,
-                                   m_scale_at_sample, grouping, m_masked, static_cast<size_t>(DISK_CHUNK),
-                                   static_cast<size_t>(GRAINSIZE_EVENTS), pulse_indices, progress);
-              // generate threads only if appropriate
-              if (num_banks_to_read > 1) {
-                tbb::parallel_for(tbb::blocked_range<size_t>(0, num_banks_to_read), task);
-              } else {
-                // a "range" of 1; note -1 to match 0-indexed array with 1-indexed bank labels
-                task(tbb::blocked_range<size_t>(outputSpecNum - 1, outputSpecNum));
-              }
+              // ProcessBankTask task(bankEntryNames, h5file, is_time_filtered, target_wksp, m_calibration,
+              //                      m_scale_at_sample, grouping, m_masked, static_cast<size_t>(DISK_CHUNK),
+              //                      static_cast<size_t>(GRAINSIZE_EVENTS), pulse_indices, progress);
+              // // generate threads only if appropriate
+              // if (num_banks_to_read > 1) {
+              //   tbb::parallel_for(tbb::blocked_range<size_t>(0, num_banks_to_read), task);
+              // } else {
+              //   // a "range" of 1; note -1 to match 0-indexed array with 1-indexed bank labels
+              //   task(tbb::blocked_range<size_t>(outputSpecNum - 1, outputSpecNum));
+              // }
             }
           });
     }

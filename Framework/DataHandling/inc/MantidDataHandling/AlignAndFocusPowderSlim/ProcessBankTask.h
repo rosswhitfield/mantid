@@ -10,6 +10,7 @@
 #include "MantidGeometry/IDTypes.h"
 #include <H5Cpp.h>
 #include <MantidAPI/Progress.h>
+#include <atomic>
 #include <map>
 #include <set>
 #include <tbb/tbb.h>
@@ -17,10 +18,15 @@
 
 namespace Mantid::DataHandling::AlignAndFocusPowderSlim {
 
+struct SpectraProcessingData {
+  std::vector<std::vector<std::atomic_uint32_t>> counts; // [spectrum][bin]
+  std::vector<const std::vector<double> *> binedges;
+};
+
 class ProcessBankTask {
 public:
   ProcessBankTask(std::vector<std::string> &bankEntryNames, H5::H5File &h5file, const bool is_time_filtered,
-                  API::MatrixWorkspace_sptr &wksp, const std::map<detid_t, double> &calibration,
+                  SpectraProcessingData &processingData, const std::map<detid_t, double> &calibration,
                   const std::map<detid_t, double> &scale_at_sample,
                   const std::map<size_t, std::vector<detid_t>> &grouping, const std::set<detid_t> &masked,
                   const size_t events_per_chunk, const size_t grainsize_event, std::vector<PulseROI> pulse_indices,
@@ -32,7 +38,7 @@ private:
   H5::H5File m_h5file;
   const std::vector<std::string> m_bankEntries;
   mutable NexusLoader m_loader;
-  API::MatrixWorkspace_sptr m_wksp;
+  SpectraProcessingData &m_processingData;
   const std::map<detid_t, double> m_calibration;           ///< detid: 1/difc
   std::map<detid_t, double> m_scale_at_sample;             ///< multiplicative 0<value<1 to move neutron TOF at sample
   const std::map<size_t, std::vector<detid_t>> m_grouping; ///< detector ids for output spectrum number

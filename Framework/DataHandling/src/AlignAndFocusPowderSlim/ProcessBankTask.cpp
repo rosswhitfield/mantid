@@ -26,16 +26,17 @@ auto g_log = Kernel::Logger("ProcessBankTask");
 
 } // namespace
 ProcessBankTask::ProcessBankTask(std::vector<std::string> &bankEntryNames, H5::H5File &h5file,
-                                 const bool is_time_filtered, API::MatrixWorkspace_sptr &wksp,
+                                 const bool is_time_filtered, SpectraProcessingData &processingData,
                                  const std::map<detid_t, double> &calibration,
                                  const std::map<detid_t, double> &scale_at_sample,
                                  const std::map<size_t, std::vector<detid_t>> &grouping,
                                  const std::set<detid_t> &masked, const size_t events_per_chunk,
                                  const size_t grainsize_event, std::vector<PulseROI> pulse_indices,
                                  std::shared_ptr<API::Progress> &progress)
-    : m_h5file(h5file), m_bankEntries(bankEntryNames), m_loader(is_time_filtered, pulse_indices), m_wksp(wksp),
-      m_calibration(calibration), m_scale_at_sample(scale_at_sample), m_grouping(grouping), m_masked(masked),
-      m_events_per_chunk(events_per_chunk), m_grainsize_event(grainsize_event), m_progress(progress) {}
+    : m_h5file(h5file), m_bankEntries(bankEntryNames), m_loader(is_time_filtered, pulse_indices),
+      m_processingData(processingData), m_calibration(calibration), m_scale_at_sample(scale_at_sample),
+      m_grouping(grouping), m_masked(masked), m_events_per_chunk(events_per_chunk), m_grainsize_event(grainsize_event),
+      m_progress(progress) {}
 
 void ProcessBankTask::operator()(const tbb::blocked_range<size_t> &range) const {
   auto entry = m_h5file.openGroup("entry"); // type=NXentry
@@ -60,16 +61,6 @@ void ProcessBankTask::operator()(const tbb::blocked_range<size_t> &range) const 
     }
 
     auto eventRanges = m_loader.getEventIndexRanges(event_group, total_events);
-
-    // create a histogrammer to process the events
-    auto &spectrum = m_wksp->getSpectrum(wksp_index);
-    // which detectors go into the current group - assumes ouput spectrum number is one more than workspace index
-    auto const &detids_in_group = m_grouping.at(wksp_index);
-
-    // std::atomic allows for multi-threaded accumulation and who cares about floats when you are just
-    // counting things
-    // std::vector<std::atomic_uint32_t> y_temp(spectrum.dataY().size())
-    std::vector<uint32_t> y_temp(spectrum.dataY().size());
 
     // create object so bank calibration can be re-used
     std::unique_ptr<BankCalibration> calibration = nullptr;
@@ -130,43 +121,41 @@ void ProcessBankTask::operator()(const tbb::blocked_range<size_t> &range) const 
       oss << "\n";
       g_log.debug() << oss.str();
 
+      detid_t minval, maxval;
+
       // load detid and tof at the same time
       tbb::parallel_invoke(
           [&] { // load detid
             // event_detid->clear();
             m_loader.loadData(detID_SDS, event_detid, offsets, slabsizes);
             // immediately find min/max to allow for other things to read disk
-            const auto [minval, maxval] = Mantid::Kernel::parallel_minmax(event_detid, m_grainsize_event);
-            // only recreate calibration if it doesn't already have the useful information
-            if ((!calibration) || (calibration->idmin() > static_cast<detid_t>(minval)) ||
-                (calibration->idmax() < static_cast<detid_t>(maxval))) {
-              calibration = std::make_unique<BankCalibration>(
-                  static_cast<detid_t>(minval), static_cast<detid_t>(maxval), time_conversion, detids_in_group,
-                  m_calibration, m_scale_at_sample, m_masked);
-            }
+            std::tie(minval, maxval) = Mantid::Kernel::parallel_minmax(event_detid, m_grainsize_event);
+
           },
           [&] { // load time-of-flight
             // event_time_of_flight->clear();
             m_loader.loadData(tof_SDS, event_time_of_flight, offsets, slabsizes);
           });
 
-      // Create a local task for this thread
-      ProcessEventsTask task(event_detid.get(), event_time_of_flight.get(), calibration.get(), &spectrum.readX());
+      // Loop over all groups in m_grouping for this bank
+      for (const auto &[group_index, detids_in_group] : m_grouping) {
+        calibration = std::make_unique<BankCalibration>(static_cast<detid_t>(minval), static_cast<detid_t>(maxval),
+                                                        time_conversion, detids_in_group, m_calibration,
+                                                        m_scale_at_sample, m_masked);
 
-      // Non-blocking processing of the events
-      const tbb::blocked_range<size_t> range_info(0, event_time_of_flight->size(), m_grainsize_event);
-      tbb::parallel_reduce(range_info, task);
+        // Create a local task for this thread
+        ProcessEventsTask task(event_detid.get(), event_time_of_flight.get(), calibration.get(),
+                               m_processingData.binedges[group_index]);
 
-      // Accumulate results into shared y_temp to combine local histograms
-      std::transform(y_temp.begin(), y_temp.end(), task.y_temp.begin(), y_temp.begin(), std::plus<uint32_t>());
+        // Non-blocking processing of the events
+        const tbb::blocked_range<size_t> range_info(0, event_time_of_flight->size(), m_grainsize_event);
+        tbb::parallel_reduce(range_info, task);
+
+        // Accumulate results into shared y_temp to combine local histograms
+        std::transform(m_processingData.counts[group_index].begin(), m_processingData.counts[group_index].end(),
+                       task.y_temp.begin(), m_processingData.counts[group_index].begin(), std::plus<uint32_t>());
+      }
     }
-
-    // copy the data out into the correct spectrum and calculate errors
-    auto &y_values = spectrum.dataY();
-    std::copy(y_temp.cbegin(), y_temp.cend(), y_values.begin());
-    auto &e_values = spectrum.dataE();
-    std::transform(y_temp.cbegin(), y_temp.cend(), e_values.begin(),
-                   [](uint32_t y) { return std::sqrt(static_cast<double>(y)); });
 
     g_log.debug() << bankName << " stop " << timer << std::endl;
     m_progress->report();
