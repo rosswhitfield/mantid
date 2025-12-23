@@ -158,9 +158,6 @@ void AlignAndFocusPowderSlim::init() {
   declareProperty(
       std::make_unique<PropertyWithValue<double>>(PropertyNames::FILTER_TIMESTOP, EMPTY_DBL(), Direction::Input),
       "To only include events before the provided stop time, in seconds (relative to the start of the run).");
-  declareProperty(std::make_unique<WorkspaceProperty<DataObjects::GroupingWorkspace>>(
-                      PropertyNames::GROUPING_WS, "", Direction::Input, API::PropertyMode::Optional),
-                  "A GroupingWorkspace giving the grouping info..");
   declareProperty(std::make_unique<API::WorkspaceProperty<API::Workspace>>(
                       PropertyNames::SPLITTER_WS, "", Direction::Input, API::PropertyMode::Optional),
                   "Input workspace specifying \"splitters\", i.e. time intervals and targets for event filtering. "
@@ -186,6 +183,9 @@ void AlignAndFocusPowderSlim::init() {
   range->setBounds(0., 100.);
   declareProperty(PropertyNames::FILTER_BAD_PULSES_LOWER_CUTOFF, 95., range,
                   "The percentage of the average to use as the lower bound when filtering bad pulses.");
+  declareProperty(std::make_unique<WorkspaceProperty<DataObjects::GroupingWorkspace>>(
+                      PropertyNames::GROUPING_WS, "", Direction::Input, API::PropertyMode::Optional),
+                  "A GroupingWorkspace giving the grouping info..");
   const std::vector<std::string> cal_exts{".h5", ".hd5", ".hdf", ".cal"};
   declareProperty(std::make_unique<FileProperty>(PropertyNames::CAL_FILE, "", FileProperty::OptionalLoad, cal_exts),
                   "The .cal file containing the position correction factors. Either this or OffsetsWorkspace needs to "

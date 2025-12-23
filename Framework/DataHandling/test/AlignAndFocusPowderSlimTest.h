@@ -15,6 +15,7 @@
 #include "MantidAPI/Run.h"
 #include "MantidAPI/WorkspaceGroup.h"
 #include "MantidDataHandling/AlignAndFocusPowderSlim.h"
+#include "MantidDataObjects/GroupingWorkspace.h"
 #include "MantidDataObjects/TableWorkspace.h"
 #include "MantidKernel/TimeROI.h"
 #include "MantidKernel/Timer.h"
@@ -32,6 +33,7 @@ using Mantid::API::Workspace_sptr;
 using Mantid::API::WorkspaceGroup;
 using Mantid::API::WorkspaceGroup_sptr;
 using Mantid::DataHandling::AlignAndFocusPowderSlim::AlignAndFocusPowderSlim;
+using Mantid::DataObjects::GroupingWorkspace_sptr;
 using Mantid::DataObjects::TableWorkspace_sptr;
 
 namespace {
@@ -54,6 +56,7 @@ struct TestConfig {
   Workspace_sptr splitterWS = nullptr;
   bool relativeTime = false;
   bool filterBadPulses = false;
+  GroupingWorkspace_sptr groupingWS = nullptr;
   std::string logListBlock = "";
   std::string logListAllow = "";
   int outputSpecNum = -10;
@@ -159,6 +162,9 @@ public:
     }
     if (configuration.filterBadPulses) {
       TS_ASSERT_THROWS_NOTHING(alg.setProperty(FILTER_BAD_PULSES, configuration.filterBadPulses));
+    }
+    if (configuration.groupingWS != nullptr) {
+      TS_ASSERT_THROWS_NOTHING(alg.setProperty(GROUPING_WS, configuration.groupingWS));
     }
     if (configuration.outputSpecNum != -10) {
       TS_ASSERT_THROWS_NOTHING(alg.setProperty(OUTPUT_SPEC_NUM, configuration.outputSpecNum));
@@ -989,6 +995,44 @@ public:
         }
       }
     }
+  }
+
+  void test_grouping_workspace() {
+    // load VULCAN instrument
+    auto load = AlgorithmManager::Instance().createUnmanaged("LoadEmptyInstrument");
+    load->initialize();
+    load->setProperty("InstrumentName", "VULCAN");
+    load->setProperty("OutputWorkspace", "instrument");
+    load->execute();
+
+    // Use GenerateGroupingPowder to create grouping workspace. This will have a many-to-many relationship between banks
+    // and output spectra. 22.5 degress gives us 6 groups for VULCAN
+    auto gen = AlgorithmManager::Instance().createUnmanaged("GenerateGroupingPowder");
+    gen->initialize();
+    gen->setProperty("InputWorkspace", "instrument");
+    gen->setProperty("AngleStep", 22.5);
+    gen->setProperty("GroupingWorkspace", "grouping");
+    gen->execute();
+
+    TestConfig configuration({0.}, {50000.}, {50000.}, "Linear", "TOF");
+    configuration.groupingWS = std::dynamic_pointer_cast<Mantid::DataObjects::GroupingWorkspace>(
+        AnalysisDataService::Instance().retrieve("grouping"));
+    auto outputWS = std::dynamic_pointer_cast<MatrixWorkspace>(run_algorithm(VULCAN_218062, configuration));
+
+    /* expected results came from running
+    ws = LoadEventNexus("VULCAN_218062.nxs.h5", NumberOfBins=1)
+    grp = GenerateGroupingPowder(ws, AngleStep=22.5)
+    ws = GroupDetectors(ws, CopyGroupingFromWorkspace="grp")
+    print(ws.extractY())
+    */
+
+    TS_ASSERT_EQUALS(outputWS->getNumberHistograms(), 6);
+    TS_ASSERT_EQUALS(outputWS->readY(0).front(), 11354244);
+    TS_ASSERT_EQUALS(outputWS->readY(1).front(), 27844674);
+    TS_ASSERT_EQUALS(outputWS->readY(2).front(), 27852087);
+    TS_ASSERT_EQUALS(outputWS->readY(3).front(), 22040812);
+    TS_ASSERT_EQUALS(outputWS->readY(4).front(), 28623564);
+    TS_ASSERT_EQUALS(outputWS->readY(5).front(), 6247785);
   }
 
   // ==================================
