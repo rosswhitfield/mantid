@@ -7,6 +7,7 @@
 
 #include "MantidAPI/MatrixWorkspace.h"
 #include "MantidDataHandling/AlignAndFocusPowderSlim/NexusLoader.h"
+#include "MantidDataHandling/AlignAndFocusPowderSlim/SpectraProcessingData.h"
 #include "MantidGeometry/IDTypes.h"
 #include <H5Cpp.h>
 #include <MantidAPI/Progress.h>
@@ -17,11 +18,6 @@
 #include <vector>
 
 namespace Mantid::DataHandling::AlignAndFocusPowderSlim {
-
-struct SpectraProcessingData {
-  std::vector<std::vector<std::atomic_uint32_t>> counts; // [spectrum][bin]
-  std::vector<const std::vector<double> *> binedges;
-};
 
 class ProcessBankTask {
 public:

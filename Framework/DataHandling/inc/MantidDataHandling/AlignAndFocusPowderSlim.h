@@ -8,6 +8,7 @@
 
 #include "MantidAPI/Algorithm.h"
 #include "MantidAPI/MatrixWorkspace_fwd.h"
+#include "MantidDataHandling/AlignAndFocusPowderSlim/SpectraProcessingData.h"
 #include "MantidDataHandling/DllConfig.h"
 #include "MantidDataObjects/TimeSplitter.h"
 #include "MantidGeometry/IDTypes.h"
@@ -31,6 +32,9 @@ private:
   void exec() override;
 
   API::MatrixWorkspace_sptr createOutputWorkspace();
+  SpectraProcessingData initializeSpectraProcessingData(const API::MatrixWorkspace_sptr &outputWS);
+  void storeSpectraProcessingData(const SpectraProcessingData &processingData,
+                                  const API::MatrixWorkspace_sptr &outputWS);
   API::MatrixWorkspace_sptr editInstrumentGeometry(API::MatrixWorkspace_sptr &wksp, const double l1,
                                                    const std::vector<double> &polars,
                                                    const std::vector<specnum_t> &specids,

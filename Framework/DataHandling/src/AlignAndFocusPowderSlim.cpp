@@ -464,13 +464,7 @@ void AlignAndFocusPowderSlim::exec() {
 
   if (timeSplitter.empty()) {
 
-    SpectraProcessingData processingData;
-    const size_t numSpectra = wksp->getNumberHistograms();
-    for (size_t i = 0; i < numSpectra; ++i) {
-      const auto &spectrum = wksp->getSpectrum(i);
-      processingData.binedges.emplace_back(&spectrum.readX());
-      processingData.counts.emplace_back(spectrum.dataY().size());
-    }
+    SpectraProcessingData processingData = initializeSpectraProcessingData(wksp);
     const auto pulse_indices = this->determinePulseIndices(wksp, filterROI);
 
     auto progress = std::make_shared<API::Progress>(this, .17, .9, num_banks_to_read);
@@ -489,14 +483,7 @@ void AlignAndFocusPowderSlim::exec() {
     h5file.close();
 
     // copy data from processingData to wksp
-    for (size_t i = 0; i < numSpectra; ++i) {
-      auto &spectrum = wksp->getSpectrum(i);
-      auto &y_values = spectrum.dataY();
-      std::copy(processingData.counts[i].cbegin(), processingData.counts[i].cend(), y_values.begin());
-      auto &e_values = spectrum.dataE();
-      std::transform(processingData.counts[i].cbegin(), processingData.counts[i].cend(), e_values.begin(),
-                     [](uint32_t y) { return std::sqrt(static_cast<double>(y)); });
-    }
+    storeSpectraProcessingData(processingData, wksp);
 
     // update the run TimeROI and remove log data outside the time ROI
     wksp->mutableRun().setTimeROI(filterROI);
@@ -577,19 +564,21 @@ void AlignAndFocusPowderSlim::exec() {
 
               // clone wksp for this target
               MatrixWorkspace_sptr target_wksp = workspaces[target_index];
+              SpectraProcessingData processingData = initializeSpectraProcessingData(target_wksp);
 
               const auto pulse_indices = this->determinePulseIndices(target_wksp, target_roi);
 
-              // ProcessBankTask task(bankEntryNames, h5file, is_time_filtered, target_wksp, m_calibration,
-              //                      m_scale_at_sample, grouping, m_masked, static_cast<size_t>(DISK_CHUNK),
-              //                      static_cast<size_t>(GRAINSIZE_EVENTS), pulse_indices, progress);
-              // // generate threads only if appropriate
-              // if (num_banks_to_read > 1) {
-              //   tbb::parallel_for(tbb::blocked_range<size_t>(0, num_banks_to_read), task);
-              // } else {
-              //   // a "range" of 1; note -1 to match 0-indexed array with 1-indexed bank labels
-              //   task(tbb::blocked_range<size_t>(outputSpecNum - 1, outputSpecNum));
-              // }
+              ProcessBankTask task(bankEntryNames, h5file, is_time_filtered, processingData, m_calibration,
+                                   m_scale_at_sample, grouping, m_masked, static_cast<size_t>(DISK_CHUNK),
+                                   static_cast<size_t>(GRAINSIZE_EVENTS), pulse_indices, progress);
+              // generate threads only if appropriate
+              if (num_banks_to_read > 1) {
+                tbb::parallel_for(tbb::blocked_range<size_t>(0, num_banks_to_read), task);
+              } else {
+                // a "range" of 1; note -1 to match 0-indexed array with 1-indexed bank labels
+                task(tbb::blocked_range<size_t>(outputSpecNum - 1, outputSpecNum));
+              }
+              storeSpectraProcessingData(processingData, target_wksp);
             }
           });
     }
@@ -685,6 +674,31 @@ MatrixWorkspace_sptr AlignAndFocusPowderSlim::createOutputWorkspace() {
   wksp->setYUnit("Counts");
 
   return wksp;
+}
+
+SpectraProcessingData
+AlignAndFocusPowderSlim::initializeSpectraProcessingData(const API::MatrixWorkspace_sptr &outputWS) {
+  SpectraProcessingData processingData;
+  const size_t numSpectra = outputWS->getNumberHistograms();
+  for (size_t i = 0; i < numSpectra; ++i) {
+    const auto &spectrum = outputWS->getSpectrum(i);
+    processingData.binedges.emplace_back(&spectrum.readX());
+    processingData.counts.emplace_back(spectrum.dataY().size());
+  }
+  return processingData;
+}
+
+void AlignAndFocusPowderSlim::storeSpectraProcessingData(const SpectraProcessingData &processingData,
+                                                         const API::MatrixWorkspace_sptr &outputWS) {
+  const size_t numSpectra = outputWS->getNumberHistograms();
+  for (size_t i = 0; i < numSpectra; ++i) {
+    auto &spectrum = outputWS->getSpectrum(i);
+    auto &y_values = spectrum.dataY();
+    std::copy(processingData.counts[i].cbegin(), processingData.counts[i].cend(), y_values.begin());
+    auto &e_values = spectrum.dataE();
+    std::transform(processingData.counts[i].cbegin(), processingData.counts[i].cend(), e_values.begin(),
+                   [](uint32_t y) { return std::sqrt(static_cast<double>(y)); });
+  }
 }
 
 void AlignAndFocusPowderSlim::initCalibrationConstants(API::MatrixWorkspace_sptr &wksp,
