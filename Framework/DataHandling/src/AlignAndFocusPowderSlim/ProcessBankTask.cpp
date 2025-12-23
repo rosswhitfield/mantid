@@ -152,8 +152,10 @@ void ProcessBankTask::operator()(const tbb::blocked_range<size_t> &range) const 
         tbb::parallel_reduce(range_info, task);
 
         // Accumulate results into shared y_temp to combine local histograms
-        std::transform(m_processingData.counts[group_index].begin(), m_processingData.counts[group_index].end(),
-                       task.y_temp.begin(), m_processingData.counts[group_index].begin(), std::plus<uint32_t>());
+        // Use atomic fetch_add to accumulate results into shared y_temp
+        for (size_t i = 0; i < m_processingData.counts[group_index].size(); ++i) {
+          m_processingData.counts[group_index][i].fetch_add(task.y_temp[i], std::memory_order_relaxed);
+        }
       }
     }
 

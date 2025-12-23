@@ -308,6 +308,7 @@ std::map<std::string, std::string> AlignAndFocusPowderSlim::validateInputs() {
       errors[PropertyNames::AZIMUTHALS] = strmakef("Azimuthal has inconsistent length %zu", phi.size());
       ;
     }
+  }
 
   // For now only support either grouping or splitter workspace, not both at the same time
   if ((!isDefault(PropertyNames::GROUPING_WS)) && (!isDefault(PropertyNames::SPLITTER_WS))) {
