@@ -267,6 +267,19 @@ std::map<std::string, std::string> AlignAndFocusPowderSlim::validateInputs() {
     errors[PropertyNames::EVENTS_PER_THREAD] = msg;
   }
 
+  // For now only support either grouping or splitter workspace, not both at the same time
+  if ((!isDefault(PropertyNames::GROUPING_WS)) && (!isDefault(PropertyNames::SPLITTER_WS))) {
+    errors[PropertyNames::GROUPING_WS] = "Cannot specify both grouping and splitter workspaces";
+    errors[PropertyNames::SPLITTER_WS] = "Cannot specify both grouping and splitter workspaces";
+  }
+
+  size_t num_hist = NUM_HIST;
+  if (!isDefault(PropertyNames::GROUPING_WS)) {
+    DataObjects::GroupingWorkspace_const_sptr groupingWS = this->getProperty(PropertyNames::GROUPING_WS);
+    const auto groupIds = groupingWS->getGroupIDs(false);
+    num_hist = groupIds.size();
+  }
+
   // validate binning information is consistent with each other
   const std::vector<double> xmins = getProperty(PropertyNames::X_MIN);
   const std::vector<double> xmaxs = getProperty(PropertyNames::X_MAX);
@@ -278,14 +291,14 @@ std::map<std::string, std::string> AlignAndFocusPowderSlim::validateInputs() {
 
   if (std::any_of(deltas.cbegin(), deltas.cend(), [](double d) { return !std::isfinite(d) || d == 0; }))
     errors[PropertyNames::X_DELTA] = "All must be nonzero";
-  else if (!(numDelta == 1 || numDelta == NUM_HIST))
-    errors[PropertyNames::X_DELTA] = "Must have 1 or 6 values";
+  else if (!(numDelta == 1 || numDelta == num_hist))
+    errors[PropertyNames::X_DELTA] = "Must have 1 or " + std::to_string(num_hist) + " values";
 
-  if (!(numMin == 1 || numMin == NUM_HIST))
-    errors[PropertyNames::X_MIN] = "Must have 1 or 6 values";
+  if (!(numMin == 1 || numMin == num_hist))
+    errors[PropertyNames::X_MIN] = "Must have 1 or " + std::to_string(num_hist) + " values";
 
-  if (!(numMax == 1 || numMax == NUM_HIST))
-    errors[PropertyNames::X_MAX] = "Must have 1 or 6 values";
+  if (!(numMax == 1 || numMax == num_hist))
+    errors[PropertyNames::X_MAX] = "Must have 1 or " + std::to_string(num_hist) + " values";
 
   // only specify allow or block list for logs
   if ((!isDefault(PropertyNames::ALLOW_LOGS)) && (!isDefault(PropertyNames::BLOCK_LOGS))) {
@@ -310,17 +323,6 @@ std::map<std::string, std::string> AlignAndFocusPowderSlim::validateInputs() {
     }
   }
 
-  // For now only support either grouping or splitter workspace, not both at the same time
-  if ((!isDefault(PropertyNames::GROUPING_WS)) && (!isDefault(PropertyNames::SPLITTER_WS))) {
-    errors[PropertyNames::GROUPING_WS] = "Cannot specify both grouping and splitter workspaces";
-    errors[PropertyNames::SPLITTER_WS] = "Cannot specify both grouping and splitter workspaces";
-  } else if (!isDefault(PropertyNames::GROUPING_WS)) {
-    DataObjects::GroupingWorkspace_const_sptr groupingWS = this->getProperty(PropertyNames::GROUPING_WS);
-    const auto groupIds = groupingWS->getGroupIDs(false);
-    if (groupIds.size() != NUM_HIST)
-      errors[PropertyNames::GROUPING_WS] = "Grouping workspace must have 6 groups";
-  }
-
   return errors;
 }
 
@@ -334,9 +336,27 @@ void AlignAndFocusPowderSlim::exec() {
   loadStart.resize(1, 0);
   loadSize.resize(1, 0);
 
+  size_t num_hist = NUM_HIST;
+  std::map<size_t, std::vector<detid_t>> grouping;
+  DataObjects::GroupingWorkspace_sptr groupingWS = this->getProperty(PropertyNames::GROUPING_WS);
+  if (groupingWS) {
+    const auto groupIds = groupingWS->getGroupIDs(false);
+    num_hist = groupIds.size();
+    for (size_t i = 0; i < groupIds.size(); ++i) {
+      grouping[i] = groupingWS->getDetectorIDsOfGroup(groupIds[i]);
+    }
+  } else {
+    constexpr detid_t NUM_DETS_PER_BANK{100000};
+    for (size_t outputSpecNum : std::views::iota(0, 6)) {
+      grouping[outputSpecNum] = std::vector<detid_t>(NUM_DETS_PER_BANK);
+      std::iota(grouping[outputSpecNum].begin(), grouping[outputSpecNum].end(),
+                static_cast<detid_t>(NUM_DETS_PER_BANK * outputSpecNum));
+    }
+  }
+
   this->progress(.0, "Create output workspace");
 
-  MatrixWorkspace_sptr wksp = createOutputWorkspace();
+  MatrixWorkspace_sptr wksp = createOutputWorkspace(num_hist);
 
   const std::string filename = getPropertyValue(PropertyNames::FILENAME);
   { // TODO TEMPORARY - this algorithm is hard coded for VULCAN
@@ -385,23 +405,6 @@ void AlignAndFocusPowderSlim::exec() {
   // convert to TOF if not already
   this->progress(.1, "Convert bins to TOF");
   wksp = this->convertToTOF(wksp);
-
-  // TODO parameters should be read in from a file
-  std::map<size_t, std::vector<detid_t>> grouping;
-  DataObjects::GroupingWorkspace_sptr groupingWS = this->getProperty(PropertyNames::GROUPING_WS);
-  if (groupingWS) {
-    const auto groupIds = groupingWS->getGroupIDs(false);
-    for (size_t i = 0; i < groupIds.size(); ++i) {
-      grouping[i] = groupingWS->getDetectorIDsOfGroup(groupIds[i]);
-    }
-  } else {
-    constexpr detid_t NUM_DETS_PER_BANK{100000};
-    for (size_t outputSpecNum : std::views::iota(0, 6)) {
-      grouping[outputSpecNum] = std::vector<detid_t>(NUM_DETS_PER_BANK);
-      std::iota(grouping[outputSpecNum].begin(), grouping[outputSpecNum].end(),
-                static_cast<detid_t>(NUM_DETS_PER_BANK * outputSpecNum));
-    }
-  }
 
   // load run metadata
   this->progress(.11, "Loading metadata");
@@ -619,7 +622,7 @@ void AlignAndFocusPowderSlim::exec() {
   }
 }
 
-MatrixWorkspace_sptr AlignAndFocusPowderSlim::createOutputWorkspace() {
+MatrixWorkspace_sptr AlignAndFocusPowderSlim::createOutputWorkspace(size_t num_hist) {
   // set up the output workspace binning
   const BINMODE binmode = getPropertyValue(PropertyNames::BINMODE);
   const bool linearBins = bool(binmode == BinningMode::LINEAR);
@@ -643,18 +646,18 @@ MatrixWorkspace_sptr AlignAndFocusPowderSlim::createOutputWorkspace() {
     UNUSED_ARG(
         Kernel::VectorHelper::createAxisFromRebinParams(params, XValues.mutableRawData(), resize_xnew, full_bins_only));
   }
-  MatrixWorkspace_sptr wksp = Mantid::DataObjects::create<Workspace2D>(NUM_HIST, XValues);
+  MatrixWorkspace_sptr wksp = Mantid::DataObjects::create<Workspace2D>(num_hist, XValues);
 
   if (raggedBins) {
     // if ragged bins, we need to resize the x-values for each histogram after the first one
     if (x_delta.size() == 1)
-      x_delta.resize(NUM_HIST, x_delta[0]);
+      x_delta.resize(num_hist, x_delta[0]);
     if (x_min.size() == 1)
-      x_min.resize(NUM_HIST, x_min[0]);
+      x_min.resize(num_hist, x_min[0]);
     if (x_max.size() == 1)
-      x_max.resize(NUM_HIST, x_max[0]);
+      x_max.resize(num_hist, x_max[0]);
 
-    for (size_t i = 1; i < NUM_HIST; ++i) {
+    for (size_t i = 1; i < num_hist; ++i) {
       HistogramData::BinEdges XValues_new(0);
 
       if (linearBins) {
