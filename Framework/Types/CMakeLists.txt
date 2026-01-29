@@ -28,6 +28,18 @@ target_include_directories(
 )
 
 target_link_libraries(Types PUBLIC Boost::date_time Boost::regex)
+
+# Link TBB malloc proxy if available to route malloc/free through TBB allocator
+option(USE_TBBMALLOC "If true, link TBB malloc proxy to route malloc/free through TBB allocator" ON)
+if(USE_TBBMALLOC)
+  if(TARGET TBB::tbbmalloc_proxy)
+    message(STATUS "Linking TBB malloc proxy")
+    target_link_libraries(Types PUBLIC TBB::tbbmalloc_proxy)
+  else()
+    message(WARNING "USE_TBBMALLOC is ON but TBB::tbbmalloc_proxy target not found")
+  endif()
+endif()
+
 generate_mantid_export_header(Types FALSE)
 
 # Installation settings

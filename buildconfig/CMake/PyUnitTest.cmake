@@ -58,23 +58,6 @@ function(PY_ADD_TEST _test_type _test_runner_module _additional_flags _test_src_
     list(APPEND _test_environment "QT_API=${PYUNITTEST_QT_API}")
   endif()
 
-  # The scripts need jemalloc to be resolved to the runtime library as the plain .so symlink is only present when a
-  # -dev/-devel package is present
-  if(JEMALLOCLIB_FOUND)
-    get_filename_component(JEMALLOC_RUNTIME_LIB ${JEMALLOC_LIBRARIES} REALPATH)
-    # We only want to use the major version number
-    string(REGEX REPLACE "([0-9]+)\.[0-9]+\.[0-9]+$" "\\1" JEMALLOC_RUNTIME_LIB ${JEMALLOC_RUNTIME_LIB})
-  endif()
-
-  # set preload as jemalloc, unless if using address sanitizer as this confuses things
-  if(NOT WITH_ASAN)
-    set(LOCAL_PRELOAD ${JEMALLOC_RUNTIME_LIB})
-    if(LD_PRELOAD)
-      set(LOCAL_PRELOAD ${LOCAL_PRELOAD}:$ENV{LD_PRELOAD})
-    endif()
-    list(APPEND _test_environment "LD_PRELOAD=${LOCAL_PRELOAD}")
-  endif()
-
   # Add all of the individual tests so that they can be run in parallel
   foreach(part ${ARGN})
     set(_filename ${part})
