@@ -4,46 +4,24 @@
 include(DetermineLinuxDistro)
 
 # ######################################################################################################################
-# If required, find tbbmalloc
+# If required, find tcmalloc
 # ######################################################################################################################
-option(USE_TBBMALLOC "If true, use LD_PRELOAD=libtbbmalloc_proxy.so in startup scripts" ON)
+option(USE_TCMALLOC "If true, use LD_PRELOAD=libtcmalloc_minimal.so in startup scripts" ON)
 # If not wanted, just carry on without it
-if(USE_TBBMALLOC)
-  find_package(TBB)
-  if(NOT TBB_FOUND)
-    message(STATUS "TBB not found, skipping TBB malloc proxy setup.")
-    set(USE_TBBMALLOC OFF)
+if(USE_TCMALLOC)
+  find_library(TCMALLOC_LIBRARIES tcmalloc_minimal)
+  if(NOT TCMALLOC_LIBRARIES)
+    message(STATUS "tcmalloc_minimal not found, skipping tcmalloc setup.")
+    set(USE_TCMALLOC OFF)
   else()
-    # The launch scripts use TBBMALLOC_LIBRARIES to set LD_PRELOAD.
-    if(TARGET TBB::tbbmalloc_proxy)
-      set(TBBMALLOC_LIBRARIES TBB::tbbmalloc_proxy)
-      set(TBBMALLOC_FOUND TRUE)
-      message(STATUS "Found TBB malloc proxy library: ${TBBMALLOC_LIBRARIES}")
-      get_target_property(_tbbmalloc_proxy_location TBB::tbbmalloc_proxy IMPORTED_LOCATION)
-      if(NOT _tbbmalloc_proxy_location)
-        get_target_property(_tbb_configs TBB::tbbmalloc_proxy IMPORTED_CONFIGURATIONS)
-        foreach(_conf ${_tbb_configs})
-          get_target_property(_tbbmalloc_proxy_location TBB::tbbmalloc_proxy IMPORTED_LOCATION_${_conf})
-          if(_tbbmalloc_proxy_location)
-            break()
-          endif()
-        endforeach()
-      endif()
-
-      if(_tbbmalloc_proxy_location)
-        set(TBBMALLOC_RUNTIME_LIB "${_tbbmalloc_proxy_location}")
-        message(STATUS "Determined location of TBB malloc proxy library: ${TBBMALLOC_RUNTIME_LIB}")
-      else()
-        message(WARNING "Could not determine location of TBB malloc proxy library")
-      endif()
-    else()
-      message(WARNING "TBB malloc proxy not found even though USE_TBBMALLOC is ON. Continuing without it.")
-    endif()
+    set(TCMALLOC_FOUND TRUE)
+    message(STATUS "Found tcmalloc library: ${TCMALLOC_LIBRARIES}")
+    set(TCMALLOC_RUNTIME_LIB "${TCMALLOC_LIBRARIES}")
   endif()
   # if it can't be found still carry on as the build will work. The package depenendencies will install it for the end
   # users
-else(USE_TBBMALLOC)
-  message(STATUS "TBB malloc will not be included in startup scripts")
+else(USE_TCMALLOC)
+  message(STATUS "tcmalloc will not be included in startup scripts")
 endif()
 
 # ######################################################################################################################

@@ -18,7 +18,7 @@ set(WORKBENCH_PLUGINS_DIR ${PLUGINS_DIR})
 # ######################################################################################################################
 # Launcher scripts. We provide a wrapper script to launch workbench to:
 #
-# * enable a custom memory allocator (tbbmalloc)
+# * enable a custom memory allocator (tcmalloc)
 # * enable VirtualGL configuration if required for remote access
 # * adds debug flags to start gdb for developers
 # ######################################################################################################################
@@ -55,19 +55,19 @@ elif [ -n \"\${TLSESSIONDATA}\" ]; then  # running in thin-linc
 fi"
 )
 
-# definitions to preload tbbmalloc but not if we are using address sanitizer as this confuses things
+# definitions to preload tcmalloc but not if we are using address sanitizer as this confuses things
 string(TOLOWER "${USE_SANITIZER}" USE_SANITIZERS_LOWER)
 if(${USE_SANITIZERS_LOWER} MATCHES "address")
-  set(TBBMALLOC_DEFINITIONS
+  set(MALLOC_DEFINITIONS
       "
 LOCAL_PRELOAD=${ASAN_LIB}
 "
   )
 else()
   # Do not indent the string below as it messes up the formatting in the final script
-  set(TBBMALLOC_DEFINITIONS
-      "# Define parameters for oneTBB malloc
-LOCAL_PRELOAD=${TBBMALLOC_RUNTIME_LIB}
+  set(MALLOC_DEFINITIONS
+      "# Define parameters for tcmalloc
+LOCAL_PRELOAD=${TCMALLOC_RUNTIME_LIB}
 if [ -n \"\${LD_PRELOAD}\" ]; then
     LOCAL_PRELOAD=\${LOCAL_PRELOAD}:\${LD_PRELOAD}
 fi
@@ -145,7 +145,7 @@ if [ -z \"\${GSETTINGS_SCHEMA_DIR}\" ]; then
 fi"
     )
 
-    # workbench launcher for tbbmalloc
+    # workbench launcher for tcmalloc
     configure_file(
       ${CMAKE_MODULE_PATH}/Packaging/launch_mantidworkbench.sh.in
       ${CMAKE_CURRENT_BINARY_DIR}/launch_mantidworkbench.sh.install${DEST_FILENAME_SUFFIX} @ONLY

@@ -5,7 +5,7 @@
 # Script is configured by CMake
 
 @PREAMBLE@
-@TBBMALLOC_DEFINITIONS@
+@MALLOC_DEFINITIONS@
 
 @VIRTUAL_GL_WRAPPER@
 

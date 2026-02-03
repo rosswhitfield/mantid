@@ -58,9 +58,9 @@ function(PY_ADD_TEST _test_type _test_runner_module _additional_flags _test_src_
     list(APPEND _test_environment "QT_API=${PYUNITTEST_QT_API}")
   endif()
 
-  # set preload as tbbmalloc, unless if using address sanitizer as this confuses things
+  # set preload as tcmalloc, unless if using address sanitizer as this confuses things
   if(NOT WITH_ASAN)
-    set(LOCAL_PRELOAD ${TBBMALLOC_RUNTIME_LIB})
+    set(LOCAL_PRELOAD ${TCMALLOC_RUNTIME_LIB})
     if(LD_PRELOAD)
       set(LOCAL_PRELOAD ${LOCAL_PRELOAD}:$ENV{LD_PRELOAD})
     endif()
