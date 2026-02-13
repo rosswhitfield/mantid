@@ -49,6 +49,15 @@ bool isASCII(const std::string &str) {
   return !std::any_of(str.cbegin(), str.cend(), [](char c) { return static_cast<unsigned char>(c) > 127; });
 }
 
+struct FileInfo {
+  std::string hint;
+  bool found{false};
+  std::filesystem::path path;
+  std::shared_ptr<Mantid::Kernel::InstrumentInfo> instr;
+  int runNumber;
+  bool error{false};
+};
+
 } // namespace
 
 namespace Mantid::API {
@@ -867,6 +876,109 @@ std::string FileFinderImpl::toUpper(const std::string &src) const {
   std::string result = src;
   std::transform(result.begin(), result.end(), result.begin(), toupper);
   return result;
+}
+
+std::vector<std::filesystem::path> FileFinderImpl::findRuns2(const std::string &hintstr,
+                                                             const std::vector<std::string> &exts,
+                                                             const bool useExtsOnly) const {
+  auto const error = validateRuns(hintstr);
+  if (!error.empty())
+    throw std::invalid_argument(error);
+
+  std::vector<FileInfo> files;
+
+  // first splits based on common separators, the expands any range as defined by dash
+  std::string hintsStr = Kernel::Strings::strip(hintstr);
+  std::cout << "findRuns2(" << hintsStr << ")\n";
+
+  std::shared_ptr<Kernel::InstrumentInfo> cachedInstr;
+
+  Mantid::Kernel::StringTokenizer hints(
+      hintsStr, ",", Mantid::Kernel::StringTokenizer::TOK_TRIM | Mantid::Kernel::StringTokenizer::TOK_IGNORE_EMPTY);
+
+  auto h = hints.begin();
+  for (; h != hints.end(); ++h) {
+
+    // First check if the hint looks like a filename (has an extension) and check if it exists. If so, add it to the
+    // list and move on to the next hint.
+    auto filePath = checkFilename(*h);
+    if (!filePath.empty()) {
+      files.emplace_back(*h, true, filePath);
+      continue;
+    }
+
+    Mantid::Kernel::StringTokenizer range(
+        *h, "-", Mantid::Kernel::StringTokenizer::TOK_TRIM | Mantid::Kernel::StringTokenizer::TOK_IGNORE_EMPTY);
+    if ((range.count() > 2)) {
+      throw std::invalid_argument("Malformed range of runs: " + *h);
+    } else if ((range.count() == 2)) {
+      cachedInstr = std::make_shared<Kernel::InstrumentInfo>(
+          this->getInstrument(range[0], true, cachedInstr ? cachedInstr->shortName() : std::string()));
+      std::pair<std::string, std::string> p1 = toInstrumentAndNumber(range[0], *cachedInstr);
+      auto run_start_num = boost::lexical_cast<unsigned int>(p1.second);
+      auto run_end_num = boost::lexical_cast<unsigned int>(range[1]);
+      if (run_end_num < run_start_num) {
+        throw std::invalid_argument("Malformed range of runs: " + *h);
+      }
+      for (int i = run_start_num; i <= run_end_num; ++i) {
+        files.emplace_back(std::to_string(i), false, "", cachedInstr, i);
+      }
+    } else {
+      cachedInstr = std::make_shared<Kernel::InstrumentInfo>(
+          this->getInstrument(*h, true, cachedInstr ? cachedInstr->shortName() : std::string()));
+      files.emplace_back(*h, false, "", cachedInstr);
+    }
+  }
+
+  g_log.debug() << "files to find:\n";
+  for (auto &file : files) {
+    g_log.debug() << "  " << file.hint << " instrument: " << (file.instr ? file.instr->name() : "null")
+                  << " run number: " << file.runNumber << "\n";
+    if (file.found)
+      continue;
+
+    const Kernel::FacilityInfo &facility = file.instr->facility();
+    const std::vector<std::string> facilityExtensions = facility.extensions();
+
+    std::filesystem::path filePath(file.hint);
+    std::string filename = filePath.stem().string();
+    std::string extension = filePath.extension().string();
+
+    if (filePath.parent_path().empty()) {
+      try {
+        if (!facility.noFilePrefix()) {
+          filename = makeFileName(filename, *file.instr);
+        }
+      } catch (std::invalid_argument &) {
+        if (filename.length() >= file.hint.length()) {
+          g_log.information() << "Could not form filename from standard rules '" << filename << "'\n";
+        }
+      }
+    }
+
+    if (filename.empty())
+      file.error = true;
+  }
+
+  std::vector<std::filesystem::path> res;
+
+  return res;
+};
+
+std::filesystem::path FileFinderImpl::checkFilename(const std::string &hint) const {
+  std::filesystem::path filePath(hint);
+  if (filePath.has_extension()) {
+    auto path = getFullPath(hint);
+    try {
+      if (!path.empty() && std::filesystem::exists(path)) {
+        g_log.information() << "found path = " << path << '\n';
+        return path;
+      }
+    } catch (const std::exception &) {
+    }
+  }
+
+  return std::filesystem::path();
 }
 
 } // namespace Mantid::API

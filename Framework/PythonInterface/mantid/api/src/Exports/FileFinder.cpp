@@ -36,7 +36,7 @@ std::vector<std::string> runFinderProxy(const FileFinderImpl &self, const std::s
   //   via PyEval_SetTrace while we execute the C++ code -
   //   ReleaseGlobalInterpreter does this for us
   Mantid::PythonInterface::ReleaseGlobalInterpreterLock releaseGlobalInterpreterLock;
-  auto paths = self.findRuns(hintstr, exts, useExtsOnly);
+  auto paths = self.findRuns2(hintstr, exts, useExtsOnly);
   std::vector<std::string> results;
   results.reserve(paths.size());
   std::transform(paths.begin(), paths.end(), std::back_inserter(results), [](const auto &p) { return p.string(); });

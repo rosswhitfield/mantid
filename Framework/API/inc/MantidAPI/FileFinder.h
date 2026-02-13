@@ -55,6 +55,10 @@ public:
                                                    const bool useExtsOnly = false) const;
   std::vector<std::filesystem::path> findRuns(const std::string &hintstr, const std::vector<std::string> &exts = {},
                                               const bool useExtsOnly = false) const;
+  std::vector<std::filesystem::path> findRuns2(const std::string &hintstr, const std::vector<std::string> &exts = {},
+                                               const bool useExtsOnly = false) const;
+
+  std::filesystem::path checkFilename(const std::string &filename) const;
   /// DO NOT USE! MADE PUBLIC FOR TESTING ONLY.
   const Kernel::InstrumentInfo getInstrument(const std::string &hintstr, const bool returnDefaultIfNotFound = true,
                                              const std::string &defaultInstrument = "") const;
