@@ -697,8 +697,10 @@ void FileFinderImpl::performArchiveSearch(std::vector<FileInfo> &fileInfos) cons
     return;
   bool allHaveSingleArch = true;
   IArchiveSearch_sptr firstArch;
+  std::cout << "performArchiveSearch: fileInfos size = " << fileInfos.size() << std::endl;
   if (fileInfos[0].archs.empty()) {
     allHaveSingleArch = false;
+    std::cout << "performArchiveSearch: first file has no archives, so allHaveSingleArch = false\n";
   } else {
     firstArch = fileInfos[0].archs[0];
     Kernel::InstrumentInfo firstInstr = *fileInfos[0].instr;
@@ -707,22 +709,31 @@ void FileFinderImpl::performArchiveSearch(std::vector<FileInfo> &fileInfos) cons
       if (fileInfo.found || fileInfo.error)
         continue;
       if (fileInfo.archs.size() != 1) {
+        std::cout << "performArchiveSearch: fileInfo with hint " << fileInfo.hint << " has " << fileInfo.archs.size()
+                  << " archives, so allHaveSingleArch = false\n";
         allHaveSingleArch = false;
         break;
       }
-      if (fileInfo.archs[0] != firstArch) {
+      if (fileInfo.archs[0].get() != firstArch.get()) {
+        std::cout << "performArchiveSearch: fileInfo with hint " << fileInfo.hint
+                  << " has a different archive, so allHaveSingleArch = false\n";
         allHaveSingleArch = false;
         break;
       }
       // Also check if the same instrument
       if (*fileInfo.instr != firstInstr) {
+        std::cout << "performArchiveSearch: fileInfo with hint " << fileInfo.hint
+                  << " has a different instrument, so allHaveSingleArch = false\n";
         allHaveSingleArch = false;
         break;
       }
     }
   }
+  std::cout << "performArchiveSearch: allHaveSingleArch = " << allHaveSingleArch << std::endl;
 
-  if (allHaveSingleArch && firstArch && firstArch->supportsMultipleHints()) {
+  if (allHaveSingleArch && firstArch->supportsMultipleHints()) {
+    std::cout << "performArchiveSearch: all files share the same single archive to search and it supports multiple "
+                 "hints, so searching together\n";
     // All files share the same single archive to search with the same instrument, so we can search them together in one
     // call to getArchivePaths. Make a vector of sets of hints to pass to the archive, one set for each file, as they
     // may have different hints.
@@ -765,6 +776,7 @@ void FileFinderImpl::performArchiveSearch(std::vector<FileInfo> &fileInfos) cons
   } else {
     // Search the archive separately for each file, as they don't all share the same single archive to search
     for (auto &fileInfo : fileInfos) {
+      std::cout << "performArchiveSearch: searching archives for fileInfo with hint " << fileInfo.hint << std::endl;
       if (fileInfo.found || fileInfo.error)
         continue;
       if (!fileInfo.archs.empty()) {

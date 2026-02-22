@@ -193,6 +193,114 @@ ORNLDataArchive::getArchivePath(const std::set<std::string> &basenames,
   return API::Result<std::filesystem::path>(NOT_FOUND, "Not found.");
 }
 
+const API::Result<std::vector<std::filesystem::path>>
+ORNLDataArchive::getArchivePaths(const std::vector<std::string> &hintstrs,
+                                 const std::vector<std::string> &suffixes) const {
+  std::cout << "ORNLDataArchive::getArchivePaths called with hintstrs:" << std::endl;
+  for (const auto &hint : hintstrs) {
+    std::cout << hint << std::endl;
+  }
+  std::vector<std::filesystem::path> results;
+  if (hintstrs.size() == 0) {
+    return API::Result<std::vector<std::filesystem::path>>(results, "Not found.");
+  }
+
+  // Mimic previous functionality by only using the first basename.
+  const auto basename = *hintstrs.cbegin();
+
+  // Validate and parse the basename.
+  boost::smatch result;
+  if (!boost::regex_match(basename, result, FILE_REGEX)) {
+    g_log.debug() << "Unexpected input passed to getArchivePath():" << std::endl << basename << std::endl;
+    return API::Result<std::vector<std::filesystem::path>>(results, "Not found.");
+    ;
+  }
+
+  assert(result.size() == 3);
+  const std::string instrument = toUpperCase(result[1]);
+  const std::string run = result[2];
+
+  const auto &config = Mantid::Kernel::ConfigService::Instance();
+  std::string facility;
+  try {
+    facility = config.getInstrument(instrument).facility().name();
+
+    if (facility != "HFIR" && facility != "SNS") {
+      return API::Result<std::vector<std::filesystem::path>>(results, "Not found.");
+    }
+  } catch (Mantid::Kernel::Exception::NotFoundError &) {
+    g_log.debug() << "\"" << instrument << "\" is not an instrument known to Mantid." << std::endl;
+    return API::Result<std::vector<std::filesystem::path>>(results, "Not found.");
+  }
+
+  // Note that we will only be asking for raw files with the given instrument
+  // and run number, and *not* filtering by suffix at this point.  (ONCat has
+  // a strict definition of what a file "extension" is, and has no way of
+  // filtering by, for example, "_event.nxs".)
+  const QueryParameters params{{"facility", facility},
+                               {"instrument", instrument},
+                               {"projection", "location"},
+                               {"tags", "type/raw"},
+                               {"sort_by", "ingested"},
+                               {"sort_direction", "DESCENDING"},
+                               {"ranges_q", "indexed.run_number:" + run}};
+
+  // If we've not manually set up an ONCat instance (presumably for testing
+  // purposes) then we must instead create one using the settings in the
+  // currently-running instance of Mantid, making sure to run it in an
+  // "unauthenticated" mode.  If we were to authenticate we'd be able to see
+  // more information, but that would require users logging in and publically
+  // available information is more than enough for our purposes here, anyway.
+  auto defaultOncat = ONCat::fromMantidSettings();
+  auto *oncat = m_oncat ? m_oncat.get() : defaultOncat.get();
+
+  const auto datafiles = [&]() {
+    try {
+      return oncat->list("api", "datafiles", params);
+    } catch (CatalogError &ce) {
+      g_log.debug() << "Error while calling ONCat:" << std::endl << ce.what() << std::endl;
+      return std::vector<ONCatEntity>();
+    }
+  }();
+
+  if (datafiles.size() == 0) {
+    g_log.debug() << "ONCat does not know the location of run \"" << run << "\" for \"" << instrument << "\"."
+                  << std::endl;
+    return API::Result<std::vector<std::filesystem::path>>(results, "Not found.");
+  }
+
+  g_log.debug() << "All datafiles returned from ONCat:" << std::endl;
+  for (const auto &datafile : datafiles) {
+    g_log.debug() << datafile.toString() << std::endl;
+  }
+
+  // It's technically possible to have been given multiple locations for a
+  // single run, since runs are occasionally written out to the wrong IPTS and
+  // therefore need to be "re-translated", leaving us with duplicates in the
+  // catalog.  Duplicates require manual intervention to be removed, and so in
+  // the meantime, since we have asked for locations to be returned to us in
+  // descending order of the time at which they were ingested, we can take the
+  // first one and be (quite) sure we end up with the correct run location.
+  const auto location = *datafiles.cbegin()->get<std::string>("location");
+
+  // Mimic the previous ICAT-calling functionality by taking "full"
+  // suffixes into account.
+  for (const auto &suffix : suffixes) {
+    const std::string fullSuffix = basename + suffix;
+    if (toUpperCase(location).ends_with(toUpperCase(fullSuffix))) {
+      results.push_back(location);
+      return API::Result<std::vector<std::filesystem::path>>(results);
+    }
+  }
+
+  if (toUpperCase(location).ends_with(toUpperCase(basename))) {
+    results.push_back(location);
+    return API::Result<std::vector<std::filesystem::path>>(results);
+  }
+
+  return API::Result<std::vector<std::filesystem::path>>(results, "Not found.");
+}
+
 void ORNLDataArchive::setONCat(ONCat_uptr oncat) { m_oncat = std::move(oncat); }
 
 } // namespace Mantid::DataHandling
