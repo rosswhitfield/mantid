@@ -114,7 +114,7 @@ void LoadParameterFile::exec() {
     } catch (Poco::Exception &exc) {
       throw Kernel::Exception::FileError(exc.displayText() + ". Unable to parse File:", filename);
     } catch (...) {
-      throw Kernel::Exception::FileError("Unable to parse File:", filename);
+      throw Kernel::Exception::FileError("Unable to parse File:", std::move(filename));
     }
   }
   addTimer("xmlParsing", parseStartTime, std::chrono::high_resolution_clock::now());

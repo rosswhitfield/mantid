@@ -664,7 +664,7 @@ std::vector<std::filesystem::path> FileFinderImpl::findRuns(const std::string &h
           previousPath = path.parent_path().string() + std::string(1, std::filesystem::path::preferred_separator);
           res.emplace_back(path);
         } else {
-          throw Kernel::Exception::NotFoundError("Unable to find file:", run);
+          throw Kernel::Exception::NotFoundError("Unable to find file:", std::move(run));
         }
       }
     } else {

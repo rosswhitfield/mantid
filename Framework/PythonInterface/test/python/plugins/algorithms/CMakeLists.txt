@@ -31,6 +31,7 @@ set(TEST_PY_FILES
     CreateLeBailFitInputTest.py
     CorrectTOFTest.py
     CreateCacheFilenameTest.py
+    CreateGroupingByComponentTest.py
     CreatePoleFigureTableWorkspaceTest.py
     CreateWorkspaceTest.py
     CropWorkspaceForMDNormTest.py
@@ -100,6 +101,7 @@ set(TEST_PY_FILES
     MatchSpectraTest.py
     MaskAngleTest.py
     MaskBTPTest.py
+    MaskDetectorsIfTest.py
     MaskWorkspaceToCalFileTest.py
     MatchPeaksTest.py
     MeanTest.py
