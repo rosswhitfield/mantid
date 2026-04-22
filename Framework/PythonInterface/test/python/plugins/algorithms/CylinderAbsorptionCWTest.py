@@ -46,7 +46,7 @@ class CylinderAbsorptionCWTest(unittest.TestCase):
         np.testing.assert_allclose(result.AbsorptionWorkspace.extractY()[:, 0], [0.54506044, 0.55826703, 0.57179362, 0.55826703])
 
         # Check multiple scattering
-        self.assertAlmostEqual(result.MultipleScatteringWorkspace.extractY()[0][0], 0.09280006)
+        self.assertAlmostEqual(result.MultipleScatteringWorkspace.extractY()[0][0], 0.120424)
 
     def testSears_large_μR(self):
         ws = self.createWorkspace()
@@ -102,7 +102,7 @@ class CylinderAbsorptionCWTest(unittest.TestCase):
         np.testing.assert_allclose(result.AbsorptionWorkspace.extractY()[:, 0], [0.54506044, 0.55826703, 0.57179362, 0.55826703])
 
         # Check multiple scattering
-        self.assertAlmostEqual(result.MultipleScatteringWorkspace.extractY()[0][0], 0.09280006)
+        self.assertAlmostEqual(result.MultipleScatteringWorkspace.extractY()[0][0], 0.120424)
 
     def testSabine(self):
         ws = self.createWorkspace()

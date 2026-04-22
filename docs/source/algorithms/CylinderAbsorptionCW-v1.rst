@@ -43,7 +43,7 @@ Output:
 
 .. testoutput:: SimpleExample
 
-   Absorption correction calculated value is 0.54 and multiple scattering value is 0.12
+   Absorption correction calculated value is 0.54 and multiple scattering value is 0.15
 
 
 **Example using SetSample:**
@@ -69,7 +69,7 @@ Output:
 
 .. testoutput:: SetSampleExample
 
-   Absorption correction calculated value is 0.54 and multiple scattering value is 0.12
+   Absorption correction calculated value is 0.54 and multiple scattering value is 0.15
 
 .. categories::
 
@@ -79,8 +79,8 @@ Output:
 References
 ----------
 
-.. [1] Sears, V. F. (1984). Absorption factor for cylindrical samples. J. Appl. Cryst. 17, 226â230. `<https://doi.org/10.1107/S0021889884011420>`__
+.. [1] Sears, V. F. (1984). Absorption factor for cylindrical samples. J. Appl. Cryst. 17, 226-230. `<https://doi.org/10.1107/S0021889884011420>`__
 
-.. [2] Sabine, T. M., Hunter, B. A., Sabine, W. R. & Ball, C. J. (1998). Analytical Expressions for the Transmission Factor and Peak Shift in Absorbing Cylindrical Specimens. J. Appl. Cryst. 31, 47â51. `<https://doi.org/10.1107/S0021889897006961>`__
+.. [2] Sabine, T. M., Hunter, B. A., Sabine, W. R. & Ball, C. J. (1998). Analytical Expressions for the Transmission Factor and Peak Shift in Absorbing Cylindrical Specimens. J. Appl. Cryst. 31, 47-51. `<https://doi.org/10.1107/S0021889897006961>`__
 
 .. [3] Blech, I. A. & Averbach, B. L. (1965). Multiple Scattering of Neutrons in Vanadium and Copper. Phys. Rev. 137, A1113. `<https://doi.org/10.1103/PhysRev.137.A1113>`__

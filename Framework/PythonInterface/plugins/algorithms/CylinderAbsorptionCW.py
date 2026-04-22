@@ -20,12 +20,18 @@ def bilinear_interpolate(x, y, x_grid, y_grid, Z):
     Returns Z(x,y).
     Assumes x_grid and y_grid are strictly increasing.
     """
-    # Find bracketing indices
-    ix = np.searchsorted(x_grid, x) - 1
-    iy = np.searchsorted(y_grid, y) - 1
-    # raise if out of bounds
-    if ix < 0 or ix >= len(x_grid) - 1 or iy < 0 or iy >= len(y_grid) - 1:
+    # Raise only for points strictly outside the tabulated domain.
+    # Exact matches on the first/last grid points are valid and should
+    # interpolate on the edge cells.
+    if x < x_grid[0] or x > x_grid[-1] or y < y_grid[0] or y > y_grid[-1]:
         raise ValueError(f"Interpolation point (x={x}, y={y}) is out of bounds of the grid.")
+    # Find bracketing indices. Use side="right" so exact matches on grid
+    # points choose the cell to their left, then clamp to the valid cell
+    # range so the first and last grid points remain in bounds.
+    ix = np.searchsorted(x_grid, x, side="right") - 1
+    iy = np.searchsorted(y_grid, y, side="right") - 1
+    ix = min(max(ix, 0), len(x_grid) - 2)
+    iy = min(max(iy, 0), len(y_grid) - 2)
 
     x1, x2 = x_grid[ix], x_grid[ix + 1]
     y1, y2 = y_grid[iy], y_grid[iy + 1]
@@ -337,9 +343,12 @@ class CylinderAbsorptionCW(PythonAlgorithm):
                         "Input workspace sample shape is not a cylinder. Please provide radius and height properties "
                         "or use a workspace with a cylinder sample shape."
                     )
+        elif not self.getProperty("MultipleScattering").value:
+            if self.getProperty("Radius").isDefault:
+                issues["Radius"] = "Radius is required, either provide it or use a workspace with a cylinder sample shape."
         elif self.getProperty("Radius").isDefault or self.getProperty("Height").isDefault:
-            issues["Radius"] = "Both radius and height properties must be provided together."
-            issues["Height"] = "Both radius and height properties must be provided together."
+            issues["Radius"] = "Radius is required, either provide it or use a workspace with a cylinder sample shape."
+            issues["Height"] = "Height is required, either provide it or use a workspace with a cylinder sample shape."
 
         if (
             self.getProperty("AttenuationXSection").isDefault
@@ -428,9 +437,12 @@ class CylinderAbsorptionCW(PythonAlgorithm):
             A = np.exp(-a1 * μR - (a2 + b2 * np.sin(thetas) ** 2) * μR**2)
         else:  # Sabine
             z = 2 * μR
-            A_L = 2 * (i0(z) - modstruve(0, z) - (i1(z) - modstruve(1, z)) / z)
-            A_B = (i1(2 * z) - modstruve(1, 2 * z)) / z
-            A = A_L * np.cos(thetas) ** 2 + A_B * np.sin(thetas) ** 2
+            if z == 0:
+                A = np.ones_like(thetas, dtype=float)
+            else:
+                A_L = 2 * (i0(z) - modstruve(0, z) - (i1(z) - modstruve(1, z)) / z)
+                A_B = (i1(2 * z) - modstruve(1, 2 * z)) / z
+                A = A_L * np.cos(thetas) ** 2 + A_B * np.sin(thetas) ** 2
 
         # Create output absorption correction workspace
         output_abs_ws = CreateWorkspace(
@@ -445,7 +457,7 @@ class CylinderAbsorptionCW(PythonAlgorithm):
             R_over_h_grid = np.array(
                 [0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22, 0.24, 0.26, 0.28, 0.30, 0.40, 0.50, 1.00, 2.00, 3.00, 4.00, 5.00]
             )
-            μR_grid = np.array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
+            μR_grid = np.array([0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9])
 
             R_over_h = radius / height
 
