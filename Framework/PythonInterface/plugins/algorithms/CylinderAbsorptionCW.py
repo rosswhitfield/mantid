@@ -247,13 +247,16 @@ class CylinderAbsorptionCW(PythonAlgorithm):
         return "CorrectionFunctions\\AbsorptionCorrection"
 
     def seeAlso(self):
-        return []
+        return ["CylinderAbsorption", "AbsorptionCorrection", "MultipleScatteringCorrection"]
 
     def name(self):
         return "CylinderAbsorptionCW"
 
     def summary(self):
-        return "Summary"
+        return (
+            "Absorption and multiple scattering calculation for cylindrical samples "
+            "with constant wavelength and assuming in-plane scattering only."
+        )
 
     def PyInit(self):
         self.declareProperty(
@@ -290,7 +293,7 @@ class CylinderAbsorptionCW(PythonAlgorithm):
         self.declareProperty(
             "AbsorptionCorrectionMethod",
             "Sears",
-            doc="Method to calculate absorption correction. Options: 'Sears', 'Sabine'",
+            doc="Method to calculate absorption correction.",
             validator=StringListValidator(["Sears", "Sabine"]),
         )
         self.declareProperty("MultipleScattering", True, doc="Calculate multiple scattering in addition to absorption correction.")
