@@ -4,27 +4,48 @@
 #   NScD Oak Ridge National Laboratory, European Spallation Source,
 #   Institut Laue - Langevin & CSNS, Institute of High Energy Physics, CAS
 # SPDX - License - Identifier: GPL - 3.0 +
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 import numpy as np
 from instrumentview.Detectors import DetectorPosition
 
 
-class Projection(ABC):
+class Projection:
     """Base class for calculating a 2D projection with a specified axis"""
+
+    _registry = {}
+
+    def __init_subclass__(cls, projection_types=None, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if projection_types:
+            for projection_type, defaults in projection_types.items():
+                Projection._registry[projection_type] = (cls, defaults)
+
+    def __new__(cls, type, **kwargs):
+        if cls is Projection:
+            entry = Projection._registry.get(type)
+            if not entry:
+                raise ValueError(f"Unknown projection type: '{type}'. Available: {list(Projection._registry)}")
+            subclass, _ = entry
+            return super().__new__(subclass)
+        return super().__new__(cls)
 
     def __init__(
         self,
+        type,
         sample_position: np.ndarray,
         root_position: np.ndarray,
         detector_positions: list[DetectorPosition] | np.ndarray,
-        axis: np.ndarray,
+        **kwargs,
     ):
         """For the given workspace and detectors, calculate 2D points with specified projection axis"""
+
+        self.type = type
+        _, defaults = Projection._registry[type]
+        self._projection_axis = np.asarray(defaults["axis"], dtype=np.float64)
 
         self._sample_position = np.asarray(sample_position, dtype=np.float64)
         self._root_position = np.asarray(root_position, dtype=np.float64)
         self._detector_positions = np.asarray(detector_positions, dtype=np.float64)
-        self._projection_axis = np.asarray(axis, dtype=np.float64)
 
         self._x_axis = np.zeros_like(self._projection_axis, dtype=np.float64)
         self._y_axis = np.zeros_like(self._projection_axis, dtype=np.float64)
@@ -38,6 +59,11 @@ class Projection(ABC):
         self._calculate_axes(self._root_position)
         self._calculate_detector_coordinates()
         self._find_and_correct_x_gap()
+
+    @property
+    def u_period(self) -> float:
+        """The period of the projection in the x direction, used to wrap points around when they are outside the x range."""
+        return self._u_period
 
     def _calculate_axes(self, root_position: np.ndarray) -> None:
         """The projection axis is specified, we calculate a 3D coordinate system based on that"""
@@ -58,6 +84,11 @@ class Projection(ABC):
 
     @abstractmethod
     def _calculate_2d_coordinates(self) -> tuple[np.ndarray, np.ndarray]:
+        pass
+
+    @abstractmethod
+    def _calculate_2d_coordinates_from_relative_positions(self, detector_relative_positions: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Project detector-relative positions to 2D coordinates."""
         pass
 
     def _calculate_detector_coordinates(self) -> None:
@@ -101,15 +132,43 @@ class Projection(ABC):
         if self._u_period == 0:
             return
 
-        # Get view of x coordinates, can change in-place
-        x = self._detector_x_coordinates
+        self._apply_x_correction_to_values(self._detector_x_coordinates)
+
+    def _apply_x_correction_to_values(self, x_values: np.ndarray) -> np.ndarray:
+        """Shift x values into the current periodic x range and return corrected values."""
         x_min, x_max = self._x_range
 
-        x[x < x_min] += np.floor((x_max - x[x < x_min]) / self._u_period) * self._u_period
-        x[x > x_max] -= np.floor((x[x > x_max] - x_min) / self._u_period) * self._u_period
+        x_values[x_values < x_min] += np.floor((x_max - x_values[x_values < x_min]) / self._u_period) * self._u_period
+        x_values[x_values > x_max] -= np.floor((x_values[x_values > x_max] - x_min) / self._u_period) * self._u_period
+        return x_values
+
+    def project_points(self, points_3d: np.ndarray, apply_x_correction: bool = True) -> np.ndarray:
+        """Project world-space points to this projection's 2D coordinates."""
+        points = np.asarray(points_3d, dtype=np.float64)
+        if points.ndim == 1:
+            points = points[np.newaxis, :]
+
+        relative_positions = points - self._sample_position
+        x_coordinates, y_coordinates = self._calculate_2d_coordinates_from_relative_positions(relative_positions)
+
+        if apply_x_correction and self._u_period != 0 and self._x_range[1] != self._x_range[0]:
+            x_coordinates = self._apply_x_correction_to_values(x_coordinates.copy())
+
+        return np.column_stack([x_coordinates, y_coordinates])
 
     def coordinate_for_detector(self, detector_index: int) -> tuple[float, float]:
         return (self._detector_x_coordinates[detector_index], self._detector_y_coordinates[detector_index])
 
     def positions(self) -> np.ndarray:
         return np.vstack([self._detector_x_coordinates, self._detector_y_coordinates]).transpose()
+
+    # Overwritten in side-by-side
+    def get_bank_groups_by_detector_id(self) -> list[tuple[list[int], str]]:
+        return []
+
+
+# Import subclasses at the BOTTOM to avoid circular imports,
+# but ensure they're always registered when Projection is imported
+from instrumentview.Projections.CylindricalProjection import CylindricalProjection  # noqa: F401 E402
+from instrumentview.Projections.SphericalProjection import SphericalProjection  # noqa: F401 E402
+from instrumentview.Projections.SideBySide import SideBySide  # noqa: F401 E402

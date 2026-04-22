@@ -5,8 +5,8 @@
 #   Institut Laue - Langevin & CSNS, Institute of High Energy Physics, CAS
 # SPDX - License - Identifier: GPL - 3.0 +
 from instrumentview.Projections.Projection import Projection
+from instrumentview.Projections.ProjectionType import ProjectionType
 import numpy as np
-from instrumentview.Detectors import DetectorPosition
 from mantid.api import PanelsSurfaceCalculator
 from mantid.dataobjects import Workspace2D
 from mantid.geometry import ComponentInfo
@@ -28,6 +28,7 @@ class FlatBankInfo:
     pixels: List[int] = field(default_factory=list)
     relative_projected_positions: np.ndarray = field(default_factory=lambda: np.empty((0, 3)))
     has_position_in_idf: bool = False
+    bank_type: str = "other"
 
     def translate(self, shift: np.ndarray):
         self.reference_position += shift
@@ -66,15 +67,13 @@ class FlatBankInfo:
                 self.detector_id_position_map[id] = detector_position
 
 
-class SideBySide(Projection):
+class SideBySide(Projection, projection_types={ProjectionType.SIDE_BY_SIDE: {"axis": [1, 0, 0]}}):
     def __init__(
         self,
+        type,
         workspace: Workspace2D,
         detector_ids: np.ndarray,
-        sample_position: np.ndarray,
-        root_position: np.ndarray,
-        detector_positions: list[DetectorPosition] | np.ndarray,
-        axis: np.ndarray,
+        **kwargs,
     ):
         self._calculator = PanelsSurfaceCalculator()
         self._detector_id_to_flat_bank_map: dict[int, FlatBankInfo] = {}
@@ -88,7 +87,7 @@ class SideBySide(Projection):
         detector_component_indices = np.where(np.isin(all_detector_ids, detector_ids))[0]
         self._component_index_detector_id_map = dict(zip(detector_component_indices, detector_ids))
         self._detector_id_component_index_map = {id: c for c, id in self._component_index_detector_id_map.items()}
-        super().__init__(sample_position, root_position, detector_positions, axis)
+        super().__init__(type, **kwargs)
 
     def _find_and_correct_x_gap(self) -> None:
         # We don't want any gaps corrected
@@ -139,6 +138,7 @@ class SideBySide(Projection):
             if len(valid_detector_ids) == 0:
                 continue
             flat_bank = FlatBankInfo()
+            flat_bank.bank_type = "grid"
             flat_bank.detector_id_position_map.clear()
             flat_bank.reference_position = np.array(bank.getPos())
             rotation = bank.getRotation()
@@ -169,6 +169,7 @@ class SideBySide(Projection):
                 self._component_index_detector_id_map[i] for i in detector_component_indices if i in self._component_index_detector_id_map
             ]
             flat_bank = FlatBankInfo()
+            flat_bank.bank_type = "tube"
             flat_bank.detector_id_position_map.clear()
             flat_bank.reference_position = np.array(component_info.position(int(detector_component_indices[0])))
             normal = np.array(self._calculator.calculateBankNormal(component_info, group))
@@ -265,6 +266,17 @@ class SideBySide(Projection):
             else:
                 position[0] += bank.dimensions[0] * space_factor
 
+    def get_bank_groups_by_detector_id(self) -> list[tuple[list[int], str]]:
+        """Return detector IDs grouped by bank, with bank type.
+
+        Returns
+        -------
+        list[tuple[list[int], str]]
+            Each element is ``(detector_ids, bank_type)`` where *bank_type*
+            is ``"grid"``, ``"tube"``, or ``"other"``.
+        """
+        return [(list(bank.detector_ids), bank.bank_type) for bank in self._flat_banks]
+
     def _calculate_2d_coordinates(self) -> tuple[np.ndarray, np.ndarray]:
         self._construct_flat_panels(self._workspace)
 
@@ -278,3 +290,9 @@ class SideBySide(Projection):
             u_positions.append(position[0])
             v_positions.append(position[1])
         return (np.array(u_positions), np.array(v_positions))
+
+    def _calculate_2d_coordinates_from_relative_positions(self, detector_relative_positions: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Project arbitrary points using the side-by-side basis axes."""
+        x = detector_relative_positions.dot(np.asarray(self._x_axis, dtype=np.float64))
+        y = detector_relative_positions.dot(np.asarray(self._y_axis, dtype=np.float64))
+        return (x, y)

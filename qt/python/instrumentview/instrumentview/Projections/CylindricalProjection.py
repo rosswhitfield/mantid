@@ -5,14 +5,25 @@
 #   Institut Laue - Langevin & CSNS, Institute of High Energy Physics, CAS
 # SPDX - License - Identifier: GPL - 3.0 +
 from instrumentview.Projections.Projection import Projection
+from instrumentview.Projections.ProjectionType import ProjectionType
 import numpy as np
 
 
-class CylindricalProjection(Projection):
+class CylindricalProjection(
+    Projection,
+    projection_types={
+        ProjectionType.CYLINDRICAL_X: {"axis": [1, 0, 0]},
+        ProjectionType.CYLINDRICAL_Y: {"axis": [0, 1, 0]},
+        ProjectionType.CYLINDRICAL_Z: {"axis": [0, 0, 1]},
+    },
+):
     """2D projection with a cylindrical coordinate system, see https://en.wikipedia.org/wiki/Cylindrical_coordinate_system"""
 
     def _calculate_2d_coordinates(self) -> tuple[np.ndarray, np.ndarray]:
         detector_relative_positions = self._detector_positions - self._sample_position
+        return self._calculate_2d_coordinates_from_relative_positions(detector_relative_positions)
+
+    def _calculate_2d_coordinates_from_relative_positions(self, detector_relative_positions: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         z = detector_relative_positions.dot(self._projection_axis)
         x = detector_relative_positions.dot(self._x_axis)
         y = detector_relative_positions.dot(self._y_axis)
