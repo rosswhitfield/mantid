@@ -9,7 +9,7 @@ import numpy as np
 from scipy.special import modstruve, i0, i1
 
 from mantid.api import AlgorithmFactory, PythonAlgorithm, WorkspaceProperty
-from mantid.kernel import Direction, Property, StringListValidator, FloatBoundedValidator
+from mantid.kernel import Direction, Property, StringListValidator, FloatBoundedValidator, FloatMandatoryValidator, CompositeValidator
 from mantid.simpleapi import CreateWorkspace, CreateSingleValuedWorkspace
 from mantid.geometry import GeometryShape
 
@@ -263,31 +263,44 @@ class CylinderAbsorptionCW(PythonAlgorithm):
             WorkspaceProperty("InputWorkspace", "", direction=Direction.Input),
             "Input workspace",
         )
-        self.declareProperty("Wavelength", Property.EMPTY_DBL, FloatBoundedValidator(lower=0.0), doc="Wavelength in Angstroms.")
+        float_greater_than_zero_validator = FloatBoundedValidator(lower=0.0)
+        float_greater_than_zero_validator.setLowerExclusive(True)
+
+        self.declareProperty(
+            "Wavelength",
+            Property.EMPTY_DBL,
+            CompositeValidator([float_greater_than_zero_validator, FloatMandatoryValidator()]),
+            doc="Wavelength in Angstroms.",
+        )
         self.declareProperty(
             "Radius",
             Property.EMPTY_DBL,
+            float_greater_than_zero_validator,
             doc="Radius of the cylinder in cm. If not provided, it will be inferred from the workspace sample shape if it is a cylinder.",
         )
         self.declareProperty(
             "Height",
             Property.EMPTY_DBL,
+            float_greater_than_zero_validator,
             doc="Height of the cylinder in cm. Only used for multiple scattering calculation. If not provided, it will be inferred from "
             "the workspace sample shape if it is a cylinder.",
         )
         self.declareProperty(
             "AttenuationXSection",
             Property.EMPTY_DBL,
+            float_greater_than_zero_validator,
             doc="Attenuation cross-section in barn at 1.7982 Å. If not provided, it will be inferred from the workspace sample material.",
         )
         self.declareProperty(
             "ScatteringXSection",
             Property.EMPTY_DBL,
+            float_greater_than_zero_validator,
             doc="Scattering cross-section in barn. If not provided, it will be inferred from the workspace sample material.",
         )
         self.declareProperty(
             "SampleNumberDensity",
             Property.EMPTY_DBL,
+            float_greater_than_zero_validator,
             doc="Number density of the material in atoms/Å^3. If not provided, it will be inferred from the workspace sample material.",
         )
         self.declareProperty(
