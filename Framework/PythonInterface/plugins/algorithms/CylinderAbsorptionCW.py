@@ -9,8 +9,9 @@ import numpy as np
 from scipy.special import modstruve, i0, i1
 
 from mantid.api import AlgorithmFactory, PythonAlgorithm, WorkspaceProperty
-from mantid.kernel import Direction, Property
+from mantid.kernel import Direction, Property, StringListValidator
 from mantid.simpleapi import CreateWorkspace, CreateSingleValuedWorkspace
+from mantid.geometry import GeometryShape
 
 
 def bilinear_interpolate(x, y, x_grid, y_grid, Z):
@@ -62,27 +63,76 @@ class CylinderAbsorptionCW(PythonAlgorithm):
             WorkspaceProperty("InputWorkspace", "", direction=Direction.Input),
             "Input workspace",
         )
-        self.declareProperty("Wavelength", 1.0, doc="Wavelength in Angstroms.")
-        self.declareProperty("Radius", 1.0, doc="Radius of the cylinder in cm.")
-        self.declareProperty("Height", 4.0, doc="Height of the cylinder in cm. Only used for multiple scattering calculation.")
-        self.declareProperty("AttenuationXSection", Property.EMPTY_DBL, doc="Attenuation cross-section in barn.")
-        self.declareProperty("ScatteringXSection", Property.EMPTY_DBL, doc="Scattering cross-section in barn.")
-        self.declareProperty("SampleNumberDensity", Property.EMPTY_DBL, doc="Number density of the material in atoms/Å^3.")
+        self.declareProperty("Wavelength", 1.7982, doc="Wavelength in Angstroms.")
         self.declareProperty(
-            "AbsorptionCorrectionMethod", "Sears", doc="Method to calculate absorption correction. Options: 'Sears', 'Sabine'"
+            "Radius",
+            Property.EMPTY_DBL,
+            doc="Radius of the cylinder in cm. If not provided, it will be inferred from the workspace sample shape if it is a cylinder.",
+        )
+        self.declareProperty(
+            "Height",
+            Property.EMPTY_DBL,
+            doc="Height of the cylinder in cm. Only used for multiple scattering calculation. If not provided, it will be inferred from "
+            "the workspace sample shape if it is a cylinder.",
+        )
+        self.declareProperty(
+            "AttenuationXSection",
+            Property.EMPTY_DBL,
+            doc="Attenuation cross-section in barn at 1.798 Å. If not provided, it will be inferred from the workspace sample material.",
+        )
+        self.declareProperty(
+            "ScatteringXSection",
+            Property.EMPTY_DBL,
+            doc="Scattering cross-section in barn. If not provided, it will be inferred from the workspace sample material.",
+        )
+        self.declareProperty(
+            "SampleNumberDensity",
+            Property.EMPTY_DBL,
+            doc="Number density of the material in atoms/Å^3. If not provided, it will be inferred from the workspace sample material.",
+        )
+        self.declareProperty(
+            "AbsorptionCorrectionMethod",
+            "Sears",
+            doc="Method to calculate absorption correction. Options: 'Sears', 'Sabine'",
+            validator=StringListValidator(["Sears", "Sabine"]),
         )
         self.declareProperty("MultipleScattering", True, doc="Calculate multiple scattering in addition to absorption correction.")
-        self.declareProperty(WorkspaceProperty("AbsorptionWorkspace", "", direction=Direction.Output), doc="Output workspace name")
-        self.declareProperty(WorkspaceProperty("MultipleScatteringWorkspace", "", direction=Direction.Output), doc="Output workspace name")
+        self.declareProperty(
+            WorkspaceProperty("AbsorptionWorkspace", "", direction=Direction.Output), doc="Absorption correction output workspace name"
+        )
+        self.declareProperty(
+            WorkspaceProperty("MultipleScatteringWorkspace", "", direction=Direction.Output),
+            doc="Multiple scattering output workspace name",
+        )
 
     def validateInputs(self):
         issues = dict()
+
+        ws = self.getProperty("InputWorkspace").value
+
+        if self.getProperty("Radius").isDefault and self.getProperty("Height").isDefault:
+            shape = ws.sample().getShape()
+            if not shape.hasValidShape():
+                issues["InputWorkspace"] = (
+                    "Input workspace sample shape is not valid. Please provide radius and height properties "
+                    "or use a workspace with a valid cylinder shape."
+                )
+            else:
+                shape_info = shape.shapeInfo()
+                if shape_info.shape() != GeometryShape.CYLINDER:
+                    issues["InputWorkspace"] = (
+                        "Input workspace sample shape is not a cylinder. Please provide radius and height properties "
+                        "or use a workspace with a cylinder sample shape."
+                    )
+        elif self.getProperty("Radius").isDefault or self.getProperty("Height").isDefault:
+            issues["Radius"] = "Both radius and height properties must be provided together."
+            issues["Height"] = "Both radius and height properties must be provided together."
+
         if (
             self.getProperty("AttenuationXSection").isDefault
             and self.getProperty("ScatteringXSection").isDefault
             and self.getProperty("SampleNumberDensity").isDefault
         ):
-            ws = self.getProperty("InputWorkspace").value
             material = ws.sample().getMaterial()
             if (
                 material.absorbXSection(self.getProperty("Wavelength").value) == 0
@@ -123,11 +173,15 @@ class CylinderAbsorptionCW(PythonAlgorithm):
             totalXSection = absorbXSection + totalScatterXSection
             numberDensity = self.getProperty("SampleNumberDensity").value
 
+        if self.getProperty("Radius").isDefault and self.getProperty("Height").isDefault:
+            shape_info = ws.sample().getShape().shapeInfo()
+            radius = shape_info.radius() * 100  # convert from m to cm
+            height = shape_info.height() * 100  # convert from m to cm
+        else:
+            radius = self.getProperty("Radius").value
+            height = self.getProperty("Height").value
+
         μ = numberDensity * totalXSection
-
-        radius = self.getProperty("Radius").value
-        height = self.getProperty("Height").value
-
         μR = μ * radius
 
         self.log().information(
@@ -143,18 +197,19 @@ class CylinderAbsorptionCW(PythonAlgorithm):
         thetas = np.array([spectrumInfo.twoTheta(i) for i in range(spectrumInfo.size())]) / 2
 
         if method == "Sears":
+            if μR > 0.9:
+                raise ValueError(
+                    "μR > 0.9. Absorption correction cannot be calculated to ~1% accuracy using Sears method. Please select Sabine."
+                )
             a1 = 1.6977
             a2 = -0.0590
             b2 = -0.5
-
             A = np.exp(-a1 * μR - (a2 + b2 * np.sin(thetas) ** 2) * μR**2)
-        elif method == "Sabine":
+        else:  # Sabine
             z = 2 * μR
             A_L = 2 * (i0(z) - modstruve(0, z) - (i1(z) - modstruve(1, z)) / z)
             A_B = (i1(2 * z) - modstruve(1, 2 * z)) / z
             A = A_L * np.cos(thetas) ** 2 + A_B * np.sin(thetas) ** 2
-        else:
-            raise ValueError(f"Invalid absorption method: {method}")
 
         # Create output absorption correction workspace
         output_abs_ws = CreateWorkspace(
@@ -375,6 +430,9 @@ class CylinderAbsorptionCW(PythonAlgorithm):
                 δ = 0
 
             multiple_scattering_delta = δ * totalScatterXSection / totalXSection
+            self.log().information(
+                f"Calculated multiple scattering delta: {multiple_scattering_delta:.4f} using R/h {R_over_h:.4f} and μR {μR:.4f}"
+            )
 
         output_ms_ws = CreateSingleValuedWorkspace(
             DataValue=multiple_scattering_delta, OutputWorkspace=self.getProperty("MultipleScatteringWorkspace").value
