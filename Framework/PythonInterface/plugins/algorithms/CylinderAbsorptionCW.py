@@ -446,7 +446,12 @@ class CylinderAbsorptionCW(PythonAlgorithm):
 
         # Create output absorption correction workspace
         output_abs_ws = CreateWorkspace(
-            DataX=[0, 1], DataY=A, NSpec=len(A), ParentWorkspace=ws, OutputWorkspace=self.getProperty("AbsorptionWorkspace").value
+            DataX=[0, 1],
+            DataY=A,
+            NSpec=len(A),
+            ParentWorkspace=ws,
+            OutputWorkspace=self.getProperty("AbsorptionWorkspace").value,
+            EnableLogging=False,
         )
 
         self.setProperty("AbsorptionWorkspace", output_abs_ws)
@@ -473,7 +478,7 @@ class CylinderAbsorptionCW(PythonAlgorithm):
             )
 
         output_ms_ws = CreateSingleValuedWorkspace(
-            DataValue=multiple_scattering_delta, OutputWorkspace=self.getProperty("MultipleScatteringWorkspace").value
+            DataValue=multiple_scattering_delta, OutputWorkspace=self.getProperty("MultipleScatteringWorkspace").value, EnableLogging=False
         )
         self.setProperty("MultipleScatteringWorkspace", output_ms_ws)
 
