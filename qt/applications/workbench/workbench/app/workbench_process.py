@@ -22,7 +22,7 @@ import mantid.kernel.environment as mtd_env
 plugins.setup_library_paths()
 
 from qtpy.QtGui import QIcon, QSurfaceFormat  # noqa: E402
-from qtpy.QtWidgets import QApplication  # noqa: E402
+from qtpy.QtWidgets import QApplication, QStyleFactory  # noqa: E402
 from qtpy.QtCore import QCoreApplication, Qt  # noqa: E402
 
 # Register the workbench Qt resources. This must happen before the QApplication is
@@ -62,6 +62,12 @@ def qapplication():
         argv[0] = APPNAME  # replace application name
 
         app = QApplication(argv)
+        # Under a desktop session (GNOME, xfce, ...) Qt's gtk3 platform theme maps the
+        # system GTK theme onto an incomplete palette, collapsing roles like Window/Base/
+        # Button into one colour and giving a washed-out look. Pin Fusion's standard palette
+        # for consistent, well-defined colours regardless of the desktop environment.
+        if mtd_env.is_linux():
+            app.setPalette(QStyleFactory.create("Fusion").standardPalette())
         app.setOrganizationName(ORGANIZATION)
         app.setOrganizationDomain(ORG_DOMAIN)
         app.setApplicationName(APPNAME)
