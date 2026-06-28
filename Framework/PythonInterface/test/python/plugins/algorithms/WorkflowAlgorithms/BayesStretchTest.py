@@ -6,6 +6,7 @@
 # SPDX - License - Identifier: GPL - 3.0 +
 import unittest
 from mantid.api import WorkspaceGroup
+from mantid.kernel import ConfigService
 from mantid.simpleapi import BayesStretch, DeleteWorkspace, Load
 
 
@@ -20,6 +21,9 @@ class BayesStretchTest(unittest.TestCase):
         self._res_ws = Load(Filename="irs26173_graphite002_res.nxs", OutputWorkspace="__BayesStretchTest_Resolution")
         self._sample_ws = Load(Filename="irs26176_graphite002_red.nxs", OutputWorkspace="__BayesStretchTest_Sample")
         self._num_hists = self._sample_ws.getNumberHistograms()
+        config = ConfigService.Instance()
+        self._original_deprectation_setting = config["algorithms.deprecated"]
+        config["algorithms.deprecated"] = "Log"
 
     def tearDown(self):
         """
@@ -27,6 +31,7 @@ class BayesStretchTest(unittest.TestCase):
         """
         DeleteWorkspace(self._sample_ws)
         DeleteWorkspace(self._res_ws)
+        ConfigService.Instance()["algorithms.deprecated"] = self._original_deprectation_setting
 
     # ----------------------------------Algorithm tests----------------------------------------
 
@@ -111,11 +116,15 @@ class BayesStretchTest(unittest.TestCase):
         self.assertAlmostEqual(fit_ws_sigma.dataY(0)[14], 0.0, places=tol_places)
         self.assertAlmostEqual(fit_ws_sigma.dataY(0)[48], 0.0, places=tol_places)
         self.assertAlmostEqual(fit_ws_sigma.dataY(0)[49], 0.0, places=tol_places)
+        self.assertEqual(fit_ws_sigma.name().split("_")[-1], "Sigma")
+        self.assertEqual(fit_ws_sigma.name().split("_")[-2], fit_group.name().split("_")[-1])
         fit_ws_beta = fit_group.getItem(1)
         self.assertAlmostEqual(fit_ws_beta.dataY(0)[11], 0.0, places=tol_places)
         self.assertAlmostEqual(fit_ws_beta.dataY(0)[12], 0.0, places=tol_places)
         self.assertAlmostEqual(fit_ws_beta.dataY(0)[21], 0.0, places=tol_places)
         self.assertAlmostEqual(fit_ws_beta.dataY(0)[22], 0.0, places=tol_places)
+        self.assertEqual(fit_ws_beta.name().split("_")[-1], "Beta")
+        self.assertEqual(fit_ws_beta.name().split("_")[-2], fit_group.name().split("_")[-1])
 
 
 if __name__ == "__main__":

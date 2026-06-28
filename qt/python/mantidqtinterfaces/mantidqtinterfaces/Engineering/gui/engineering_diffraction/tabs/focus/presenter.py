@@ -65,7 +65,7 @@ class FocusPresenter(object):
             return
         focus_paths = self.view.get_focus_filenames()
         if self._number_of_files_warning(focus_paths):
-            self.start_focus_worker(focus_paths, self.view.get_plot_output(), self.rb_num, self.current_calibration)
+            self.start_focus_worker(focus_paths, self.view.get_focus_plot_output(), self.rb_num, self.current_calibration)
 
     def start_focus_worker(self, focus_paths: list, plot_output: bool, rb_num: str, calibration: CalibrationInfo) -> None:
         """
@@ -151,10 +151,14 @@ class FocusPresenter(object):
 
     def update_calibration(self, calibration):
         """
-        Update the current calibration following an call from a CalibrationNotifier
+        Update the current calibration following a call from a CalibrationNotifier
         :param calibration: The new current calibration.
         """
         self.current_calibration = calibration
-        region_text = calibration.get_group_description()
-        self.view.set_region_display_text(region_text)
-        self.view.set_focus_button_enabled(True)
+        if calibration:
+            region_text = calibration.get_group_description()
+            self.view.set_region_display_text(region_text)
+            self.view.set_focus_button_enabled(True)
+        else:
+            self.view.set_region_display_text("Calibration not loaded")
+            self.view.set_focus_button_enabled(False)
