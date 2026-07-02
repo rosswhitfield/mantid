@@ -11,11 +11,12 @@ from mantid.simpleapi import BayesQuasi, CreateWorkspace, DeleteWorkspace, Load
 from mantid.api import MatrixWorkspace, WorkspaceGroup
 from plugins.algorithms.WorkflowAlgorithms.BayesQuasi import _calculate_eisf
 import platform
+import sys
 
-SHOULD_SKIP = "arm" in platform.machine()
+SHOULD_SKIP = "arm" in platform.machine() or sys.platform == "win32"
 
 
-@unittest.skipIf(SHOULD_SKIP, "Skipping tests on ARM architecture")
+@unittest.skipIf(SHOULD_SKIP, "Skipping tests on ARM architecture and Windows")
 class BayesQuasiTest(unittest.TestCase):
     _res_ws = None
     _sample_ws = None

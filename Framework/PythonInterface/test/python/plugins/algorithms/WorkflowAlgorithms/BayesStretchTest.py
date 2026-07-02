@@ -5,11 +5,13 @@
 #   Institut Laue - Langevin & CSNS, Institute of High Energy Physics, CAS
 # SPDX - License - Identifier: GPL - 3.0 +
 import unittest
+import sys
 from mantid.api import WorkspaceGroup
 from mantid.kernel import ConfigService
 from mantid.simpleapi import BayesStretch, DeleteWorkspace, Load
 
 
+@unittest.skipIf(sys.platform == "win32", "quasielasticbayes is not available on Windows")
 class BayesStretchTest(unittest.TestCase):
     _res_ws = None
     _sample_ws = None

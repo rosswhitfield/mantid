@@ -23,7 +23,8 @@ class BayesQuasiTest(MantidSystemTest):
     _prob_ws_name = "irs26176_graphite002_QLr_Prob"
 
     def skipTests(self):
-        return platform == "darwin"
+        # macOS is skipped for numerical reasons; Windows has no quasielasticbayes conda package
+        return platform in ("darwin", "win32")
 
     def runTest(self):
         config["algorithms.deprecated"] = "Log"

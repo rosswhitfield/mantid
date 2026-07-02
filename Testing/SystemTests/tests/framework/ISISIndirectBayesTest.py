@@ -7,6 +7,7 @@
 # pylint: disable=no-init,attribute-defined-outside-init, too-few-public-methods
 from abc import ABCMeta, abstractmethod
 import os
+import sys
 import warnings
 import tempfile
 
@@ -33,6 +34,9 @@ def _cleanup_files(dirname, filenames):
 
 
 class QLresTest(systemtesting.MantidSystemTest):
+    def skipTests(self):
+        return sys.platform == "win32"
+
     def runTest(self):
         workdir = tempfile.mkdtemp(prefix="bayes_")
         config["defaultsave.directory"] = workdir
@@ -84,6 +88,9 @@ class QLresTest(systemtesting.MantidSystemTest):
 
 
 class QuestTest(systemtesting.MantidSystemTest):
+    def skipTests(self):
+        return sys.platform == "win32"
+
     def runTest(self):
         workdir = tempfile.mkdtemp(prefix="bayes_")
         config["defaultsave.directory"] = workdir
@@ -124,6 +131,9 @@ class QuestTest(systemtesting.MantidSystemTest):
 
 
 class QSeTest(systemtesting.MantidSystemTest):
+    def skipTests(self):
+        return sys.platform == "win32"
+
     def runTest(self):
         workdir = tempfile.mkdtemp(prefix="bayes_")
         config["defaultsave.directory"] = workdir
@@ -169,6 +179,9 @@ class QSeTest(systemtesting.MantidSystemTest):
 
 
 class QLDataTest(systemtesting.MantidSystemTest):
+    def skipTests(self):
+        return sys.platform == "win32"
+
     def runTest(self):
         workdir = tempfile.mkdtemp(prefix="bayes_")
         config["defaultsave.directory"] = workdir
@@ -220,6 +233,9 @@ class QLDataTest(systemtesting.MantidSystemTest):
 
 
 class QLResNormTest(systemtesting.MantidSystemTest):
+    def skipTests(self):
+        return sys.platform == "win32"
+
     def runTest(self):
         workdir = tempfile.mkdtemp(prefix="bayes_")
         config["defaultsave.directory"] = workdir
@@ -275,6 +291,9 @@ class QLResNormTest(systemtesting.MantidSystemTest):
 
 
 class QLWidthTest(systemtesting.MantidSystemTest):
+    def skipTests(self):
+        return sys.platform == "win32"
+
     def runTest(self):
         workdir = tempfile.mkdtemp(prefix="bayes_")
         config["defaultsave.directory"] = workdir
