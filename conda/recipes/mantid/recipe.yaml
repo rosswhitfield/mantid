@@ -87,7 +87,6 @@ cache:
       - toml ${{ toml }}
       - joblib
       - orsopy ${{ orsopy }}
-      - quasielasticbayes ${{ quasielasticbayes }}
       - quickbayes ${{ quickbayes }}
       - zlib
       - ${{ pin_compatible('numpy', lower_bound='2.0', upper_bound='x.x') }}
@@ -99,6 +98,9 @@ cache:
       - if: win
         then:
           - lib3mf
+      - if: osx or linux
+        then:
+          - quasielasticbayes ${{ quasielasticbayes }}
 
 outputs:
   - package:
