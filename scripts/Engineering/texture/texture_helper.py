@@ -6,6 +6,7 @@
 # SPDX - License - Identifier: GPL - 3.0 +
 import numpy as np
 from os import path
+from scipy.spatial.transform import Rotation
 from mantid.simpleapi import (
     logger,
     SetGoniometer,
@@ -14,6 +15,8 @@ from mantid.simpleapi import (
     CloneWorkspace,
     CombineTableWorkspaces,
     ConjoinWorkspaces,
+    DefineGaugeVolume,
+    EstimateScatteringVolumeCentreOfMass,
     Rebin,
     RebinToWorkspace,
     SaveAscii,
@@ -83,7 +86,7 @@ def show_texture_sample_shape(
     ax_labels: Sequence[str] = ("d1", "d2", "d3"),
     gauge_vol_preset: Optional[str] = None,
     custom_file: Optional[str] = None,
-):
+) -> None:
     """
     Show the sample present on a workspace along with the texture sample directions, and optionally a gauge volume
 
@@ -166,7 +169,7 @@ def load_all_orientations(
 # -------------------------------------------------------------------#
 
 
-def create_default_parameter_table_with_value(ws_name: str, val: float, out_ws: str):
+def create_default_parameter_table_with_value(ws_name: str, val: float, out_ws: str) -> None:
     """
     Creates an example parameter table with a row for each spectrum in the supplied workspace and the intensity value provided
 
@@ -454,7 +457,7 @@ def plot_contour_pf(
     return fig, ax
 
 
-def get_debug_info(ws: TableWorkspace):
+def get_debug_info(ws: TableWorkspace) -> Sequence[str]:
     """
     Format the rows of the Pole Figure Table as labels for points in the plot
     """
@@ -465,7 +468,7 @@ def get_debug_info(ws: TableWorkspace):
     return debug_info
 
 
-def get_pole_figure_data(ws: TableWorkspace, projection: str, readout_col: str = "I"):
+def get_pole_figure_data(ws: TableWorkspace, projection: str, readout_col: str = "I") -> np.ndarray:
     """
     Convert data in a pole figure table into a data array and project it into two dimensions
 
@@ -516,7 +519,7 @@ def azim_proj(alphas: np.ndarray, betas: np.ndarray, i: np.ndarray) -> np.ndarra
     return out
 
 
-def _retrieve_ws_object(ws: str | Workspace2D | TableWorkspace):
+def _retrieve_ws_object(ws: str | Workspace2D | TableWorkspace) -> Workspace2D | TableWorkspace:
     if isinstance(ws, str):
         return ADS.retrieve(ws)
     return ws
@@ -536,10 +539,146 @@ def generous_rebin(ws: str | Workspace2D, out_ws: str, StoreInADS: bool = True) 
     return Rebin(InputWorkspace=ws, Params=(minX, diffX, maxX), OutputWorkspace=out_ws, StoreInADS=StoreInADS)
 
 
-def save_texture_ws_ascii(ws: str | Workspace2D, save_dir: str, StoreInADS: bool = False):
+def save_texture_ws_ascii(ws: str, save_dir: str, StoreInADS: bool = False) -> None:
     try:
         SaveAscii(InputWorkspace=ws, Filename=path.join(save_dir, ws + ".txt"), Separator="Tab")
     except RuntimeError:
         logger.notice(f"Failed to save {ws} as a txt file, Rebinning generously")
         ascii_ws = generous_rebin(ws, "ascii_ws", StoreInADS)
         SaveAscii(InputWorkspace=ascii_ws, Filename=path.join(save_dir, ws + ".txt"), Separator="Tab")
+
+
+# --------------------------------------------------------------#
+##### TexturePlanner shared math/workspace helpers ############
+# --------------------------------------------------------------#
+
+
+def ring(axis, r=1, res=100, offset=(0, 0, 0)):
+    """Generate ``res`` points evenly spaced around a circle of radius ``r``
+    in the plane perpendicular to ``axis``, centred at ``offset``.
+
+    Returns a (3, res) array (x/y/z stacked as rows) suitable for plotting.
+    """
+    u = np.linspace(0, 2 * np.pi, res)
+    a = r * np.cos(u) + offset[0]
+    b = r * np.sin(u) + offset[1]
+    c = np.zeros_like(a) + offset[2]
+    points = np.concatenate((a[None, :], b[None, :], c[None, :]), axis=0)
+    R, _ = Rotation.align_vectors(axis, np.array((0, 0, 1)))
+    return R.apply(points.T).T
+
+
+def get_alpha_beta_from_cart(q_sample_cart: np.ndarray) -> np.ndarray:
+    """Convert cartesian unit vectors to spherical angles (alpha, beta).
+
+    alpha is the angle from positive x towards positive z.
+    beta is the angle from positive y (polar angle).
+
+    Parameters
+    ----------
+    q_sample_cart : np.ndarray of shape (3, N)
+        Stacked cartesian coordinates; row 0 = x, row 1 = y, row 2 = z.
+
+    Returns
+    -------
+    np.ndarray of shape (N, 2)
+        Columns are (alpha, beta) in radians.
+    """
+    if q_sample_cart.ndim != 2 or q_sample_cart.shape[0] != 3:
+        raise ValueError(f"q_sample_cart must have shape (3, N); got {q_sample_cart.shape}")
+    # numerical inaccuracies outside this range will give nan in the trig funcs
+    q_sample_cart = np.clip(q_sample_cart.copy(), -1.0, 1.0)
+    q_sample_cart = np.where(q_sample_cart[1] < 0, -q_sample_cart, q_sample_cart)  # invert the southern points
+    alphas = np.arctan2(q_sample_cart[2], q_sample_cart[0])
+    betas = np.arccos(q_sample_cart[1])
+    return np.concatenate([alphas[:, None], betas[:, None]], axis=1)
+
+
+def ster_proj_xy(alphas: np.ndarray, betas: np.ndarray) -> np.ndarray:
+    """Stereographic projection of (alpha, beta) angles onto the (x, y) plane.
+
+    Like :func:`ster_proj` but without an intensity column; returns shape (N, 2).
+    """
+    betas = np.pi - betas  # this formula projects onto the north pole, and beta is taken from the south
+    r = np.sin(betas) / (1 - np.cos(betas))
+    out = np.zeros((len(alphas), 2))
+    out[:, 0] = r * np.cos(alphas)
+    out[:, 1] = r * np.sin(alphas)
+    return out
+
+
+def azim_proj_xy(alphas: np.ndarray, betas: np.ndarray) -> np.ndarray:
+    """Azimuthal (equidistant) projection of (alpha, beta) onto the (x, y) plane.
+
+    Like :func:`azim_proj` but without an intensity column; returns shape (N, 2).
+    """
+    betas = betas / (np.pi / 2)
+    xs = (betas * np.cos(alphas))[:, None]
+    zs = (betas * np.sin(alphas))[:, None]
+    return np.concatenate([xs, zs], axis=1)
+
+
+def project_orientation(R, detQs_lab: np.ndarray, ax_transform: np.ndarray, projection: str) -> np.ndarray:
+    """Project per-detector lab-frame Q vectors into a pole-figure (x, y) for a given sample rotation R."""
+    rot_pos = R.inv().apply(detQs_lab) @ ax_transform
+    cart_pos = get_alpha_beta_from_cart(rot_pos.T)
+    return ster_proj_xy(*cart_pos.T) if projection == "ster" else azim_proj_xy(*cart_pos.T)
+
+
+def vec_string_to_norm_array(vec_string: str) -> np.ndarray:
+    """Parse a comma-separated 3-vector string into a normalised numpy array.
+
+    On parse error logs the failure and returns ``(1, 0, 0)`` so callers can keep
+    going (used by the TexturePlanner auto-plot path which would otherwise crash
+    on transient bad input from the goniometer text fields).
+    """
+    if len(vec_string.split(",")) != 3:
+        logger.error(f"Vector string provided is not the correct length: {vec_string}, (1,0,0) has been used instead")
+        return np.array((1, 0, 0))
+    try:
+        vec = np.asarray([float(x) for x in vec_string.split(",")])
+    except Exception:
+        logger.error(f"Invalid vector string provided: {vec_string}, (1,0,0) has been used instead")
+        return np.array((1, 0, 0))
+    return vec / np.linalg.norm(vec)
+
+
+def define_gauge_volume(ws: Workspace2D, gauge_str: Optional[str]) -> None:
+    """Apply a gauge-volume XML string to ``ws`` if one is provided."""
+    if gauge_str:
+        DefineGaugeVolume(ws, gauge_str)
+
+
+def get_scattering_centre(ws) -> np.ndarray:
+    """Return a rough estimate centre of mass of the illuminated sample volume, or the origin
+    if the estimate fails (e.g. when the sample lies outside the gauge volume).
+
+    For more accurate calculations, use EstimateScatteringVolumeCentreOfMass directly
+    """
+    if ws.run().hasProperty("GaugeVolume"):
+        # if there is a defined gauge volume this will be rasterized and should be small enough
+        # for 1mm elements to be appropriate
+        element_size = 1
+        units = "mm"
+    else:
+        # if there is no gauge volume the whole sample shape will be rasterized
+
+        # we will empirically scale the element size to keep execution time reasonable
+        # as this is just meant for quick estimations.
+
+        # if the shape is within the realm of a cube
+        # (longest bounding box side is within factor 5 of shortest)
+        # then the elements can be a bit smaller without requiring a ludicrous number
+        # if the shape is not approximately cubic (think wires or plates)
+        # then we only use 2 elements to cover the shortest dimension
+        bounding_box_extents = ws.sample().getShape().getBoundingBox().width()
+        shortest = min(bounding_box_extents)
+        longest = max(bounding_box_extents)
+        factor = 5 if longest / shortest < 5 else 2
+        element_size = shortest / factor
+        units = "m"
+    try:
+        return np.asarray(EstimateScatteringVolumeCentreOfMass(InputWorkspace=ws, ElementSize=element_size, ElementUnits=units))
+    except RuntimeError as err:
+        logger.warning(f"EstimateScatteringVolumeCentreOfMass failed ({err}); falling back to origin (0,0,0).")
+        return np.array((0.0, 0.0, 0.0))

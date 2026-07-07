@@ -13,7 +13,7 @@ from mantid.api import AnalysisDataService as ADS
 from mantid.simpleapi import CreateSampleWorkspace, SetGoniometer, SetSample
 from Engineering.common.xml_shapes import get_cube_xml
 
-from Engineering.texture.correction.correction_model import TextureCorrectionModel
+from Engineering.texture.correction.correction_model import TextureCorrectionModel, read_attenuation_coefficient_at_value
 
 correction_model_path = "Engineering.texture.correction.correction_model"
 texture_helper_path = "Engineering.texture.texture_helper"
@@ -185,7 +185,7 @@ class TextureCorrectionModelTest(unittest.TestCase):
 
         mock_convert.return_value = mock_ws
 
-        coefs = self.model.read_attenuation_coefficient_at_value(self.ws_name, 2.0, "Wavelength")
+        coefs = read_attenuation_coefficient_at_value(self.ws_name, 2.0, "Wavelength")
         self.assertEqual(len(coefs), 1)
         # bin centres are 1.5 and 2.5, so expect a value halfway between 2 and 4
         self.assertEqual(coefs[0], 3)
@@ -292,8 +292,7 @@ class TextureCorrectionModelTest(unittest.TestCase):
     def test_apply_corrections_applies_default_normalisation_with_default_vals(self, mock_ads, mock_clone, mock_convert, mock_save):
         mock_calib = mock.MagicMock()
         self.model.set_calibration(mock_calib)
-        mock_calib.group = "group"
-        mock_calib.texture_groups = ("1", "2")
+        mock_calib.is_texture_group.return_value = False
         mock_ads.retrieve.return_value = self.mock_ws
         mock_convert.return_value = mock.MagicMock()
         self.model.apply_corrections("ws1", "out_ws", "dir", abs_corr=1.0, div_corr=1.0)
@@ -310,8 +309,7 @@ class TextureCorrectionModelTest(unittest.TestCase):
         # Arrange
         mock_calib = MagicMock()
         self.model.set_calibration(mock_calib)
-        mock_calib.group = "group"
-        mock_calib.texture_groups = ("1", "2")
+        mock_calib.is_texture_group.return_value = False
         ws = MagicMock()
         abs_ws = MagicMock()
         div_ws = MagicMock()
@@ -355,8 +353,7 @@ class TextureCorrectionModelTest(unittest.TestCase):
         mock_calib = MagicMock()
         self.model.set_calibration(mock_calib)
         self.model.set_rb_num("rb123")
-        mock_calib.group = "group"
-        mock_calib.texture_groups = ("1", "2")
+        mock_calib.is_texture_group.return_value = False
         ws = MagicMock()
         mock_ads.retrieve.return_value = ws
         mock_convert.return_value = ws
@@ -398,7 +395,7 @@ class TextureCorrectionModelTest(unittest.TestCase):
     @patch(correction_model_path + ".TextureCorrectionModel.apply_corrections")
     @patch(correction_model_path + ".TextureCorrectionModel.calc_divergence")
     @patch(correction_model_path + ".TextureCorrectionModel.write_atten_val_table")
-    @patch(correction_model_path + ".TextureCorrectionModel.read_attenuation_coefficient_at_value")
+    @patch(correction_model_path + ".read_attenuation_coefficient_at_value")
     @patch(correction_model_path + ".TextureCorrectionModel.calc_absorption")
     @patch(correction_model_path + ".TextureCorrectionModel.define_gauge_volume")
     def test_calc_all_corrections(
@@ -448,6 +445,17 @@ class TextureCorrectionModelTest(unittest.TestCase):
         )
         mock_calc_divergence.assert_called_once_with(self.mock_ws, div_args["hoz"], div_args["vert"], div_args["det_hoz"])
         mock_apply_corrections.assert_called_once_with(self.mock_ws, out_wss[0], root_dir, "_abs_corr", "_div_corr")
+
+    def test_is_texture_returns_false_when_no_calibration(self):
+        self.assertFalse(TextureCorrectionModel.is_texture(None))
+
+    def test_is_texture_delegates_to_calibration(self):
+        for is_texture in (True, False):
+            with self.subTest(is_texture=is_texture):
+                mock_calib = MagicMock()
+                mock_calib.is_texture_group.return_value = is_texture
+                self.assertEqual(TextureCorrectionModel.is_texture(mock_calib), is_texture)
+                mock_calib.is_texture_group.assert_called_once_with()
 
 
 if __name__ == "__main__":
