@@ -6,7 +6,7 @@
 # SPDX - License - Identifier: GPL - 3.0 +
 
 import numpy as np
-from scipy.special import modstruve, i0, i1
+from scipy.special import modstruve, iv, gamma
 
 from mantid.api import AlgorithmFactory, PythonAlgorithm, WorkspaceProperty
 from mantid.kernel import Direction, Property, StringListValidator, FloatBoundedValidator, FloatMandatoryValidator, CompositeValidator
@@ -248,6 +248,31 @@ def bilinear_interpolate(x, y, x_grid, y_grid, Z):
 )
 
 
+def asymptotic_diff(n, z, N_terms=6):
+    """
+    Computes the asymptotic expansion of I_n(z) - L_n(z) to N_terms.
+    """
+    total = 0.0
+
+    for k in range(N_terms):
+        num = gamma(k + 0.5)
+        den = gamma(n + 0.5 - k)
+        power = (z / 2.0) ** (2 * k - n + 1)
+        total += num / (den * power)
+
+    return total / np.pi
+
+
+def get_diff(n, z):
+    """
+    Computes I_n(z) - L_n(z) using the asymptotic expansion for large z.
+    """
+    if z > 12:
+        return asymptotic_diff(n, z)
+    else:
+        return iv(n, z) - modstruve(n, z)
+
+
 class CylinderAbsorptionCW(PythonAlgorithm):
     def category(self):
         return "CorrectionFunctions\\AbsorptionCorrection"
@@ -440,8 +465,8 @@ class CylinderAbsorptionCW(PythonAlgorithm):
             if z == 0:
                 A = np.ones_like(thetas, dtype=float)
             else:
-                A_L = 2 * (i0(z) - modstruve(0, z) - (i1(z) - modstruve(1, z)) / z)
-                A_B = (i1(2 * z) - modstruve(1, 2 * z)) / z
+                A_L = 2 * (get_diff(0, z) - get_diff(1, z) / z)
+                A_B = get_diff(1, 2 * z) / z
                 A = A_L * np.cos(thetas) ** 2 + A_B * np.sin(thetas) ** 2
 
         # Create output absorption correction workspace
