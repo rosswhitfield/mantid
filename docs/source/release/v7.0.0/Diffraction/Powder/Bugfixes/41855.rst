@@ -1,1 +1,1 @@
-- Fix :ref:`CylinderAbsorptionCW <algm-CylinderAbsorptionCW>` Sabine calculation for large μR
+- Fixed :ref:`CylinderAbsorptionCW <algm-CylinderAbsorptionCW>` Sabine calculation for large μR
