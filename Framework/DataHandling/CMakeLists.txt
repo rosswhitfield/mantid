@@ -221,6 +221,8 @@ set(SRC_FILES
     src/AlignAndFocusPowderSlim/ProcessBankSplitTask.cpp
     src/AlignAndFocusPowderSlim/ProcessBankSplitFullTimeTask.cpp
     src/AlignAndFocusPowderSlim/BankCalibration.cpp
+    src/LoadEventNexusMD.cpp
+    src/LoadEventNexusMD/QConversionTable.cpp
 )
 
 set(INC_FILES
@@ -285,6 +287,7 @@ set(INC_FILES
     inc/MantidDataHandling/LoadEventAsWorkspace2D.h
     inc/MantidDataHandling/LoadEventNexus.h
     inc/MantidDataHandling/LoadEventNexusIndexSetup.h
+    inc/MantidDataHandling/LoadEventNexusMD.h
     inc/MantidDataHandling/LoadEventPreNexus2.h
     inc/MantidDataHandling/LoadFITS.h
     inc/MantidDataHandling/LoadFullprofResolution.h
@@ -450,6 +453,8 @@ set(INC_FILES
     inc/MantidDataHandling/AlignAndFocusPowderSlim/ProcessBankSplitFullTimeTask.h
     inc/MantidDataHandling/AlignAndFocusPowderSlim/ProcessEventsTask.h
     inc/MantidDataHandling/AlignAndFocusPowderSlim/BankCalibration.h
+    inc/MantidDataHandling/LoadEventNexusMD/ProcessEventsMDTask.h
+    inc/MantidDataHandling/LoadEventNexusMD/QConversionTable.h
     inc/MantidDataHandling/RotateSampleShape.h
 )
 
@@ -508,6 +513,7 @@ set(TEST_FILES
     LoadErrorEventsNexusTest.h
     LoadEventAsWorkspace2DTest.h
     LoadEventNexusIndexSetupTest.h
+    LoadEventNexusMDTest.h
     LoadEventNexusTest.h
     LoadEventPreNexus2Test.h
     LoadFITSTest.h
@@ -589,6 +595,7 @@ set(TEST_FILES
     PDLoadCharacterizationsTest.h
     ProcessBankSplitFullTimeTaskTest.h
     ProcessEventsTaskTest.h
+    QConversionTableTest.h
     PulseIndexerTest.h
     RawFileInfoTest.h
     ReadMaterialTest.h
