@@ -76,6 +76,10 @@ public:
   /// creates a vtp filename from a given xml filename
   const std::string createVTPFileName();
 
+  /// creates the beamline cache filename for this instrument definition, or an
+  /// empty string when beamline caching is switched off
+  const std::string createBeamlineCacheFileName();
+
 private:
   /// shared Constructor logic
   void initialise(const std::string &filename, const std::string &instName, const std::string &xmlText,

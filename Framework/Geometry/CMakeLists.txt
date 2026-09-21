@@ -51,6 +51,7 @@ set(SRC_FILES
     src/Instrument/ComponentInfoBankHelpers.cpp
     src/Instrument/ComponentInfoIterator.cpp
     src/Instrument/Container.cpp
+    src/Instrument/BeamlineCache.cpp
     src/Instrument/Detector.cpp
     src/Instrument/DetectorGroup.cpp
     src/Instrument/DetectorInfo.cpp
@@ -197,6 +198,7 @@ set(INC_FILES
     inc/MantidGeometry/Instrument/ComponentInfoIterator.h
     inc/MantidGeometry/Instrument/ComponentVisitor.h
     inc/MantidGeometry/Instrument/Container.h
+    inc/MantidGeometry/Instrument/BeamlineCache.h
     inc/MantidGeometry/Instrument/Detector.h
     inc/MantidGeometry/Instrument/DetectorGroup.h
     inc/MantidGeometry/Instrument/DetectorInfo.h
@@ -306,6 +308,7 @@ set(TEST_FILES
     CompAssemblyTest.h
     ComponentInfoBankHelpersTest.h
     ComponentInfoIteratorTest.h
+    BeamlineCacheTest.h
     ComponentInfoTest.h
     ComponentParserTest.h
     ComponentTest.h

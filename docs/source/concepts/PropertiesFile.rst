@@ -82,68 +82,77 @@ Facility and instrument properties
 Directory Properties
 ********************
 
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-|Property                              |Description                                        |Example value                        |
-+======================================+===================================================+=====================================+
-| ``colormaps.directory``              | The directory where colormaps are located         | ``/opt/mantid/colormaps``           |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``datasearch.directories``           | A semi-colon(``;``) separated list of directories | ``../data;\\\\isis\\isis$\\ndxgem`` |
-|                                      | to use to search for data.                        |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``datacachesearch.directory``        | The directory where data cache is located         | ``/data/instrument``                |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``datasearch.searcharchive``         | ``on`` (only the default facility), ``off``       | ``on`` or ``hfir,sns``              |
-|                                      | (none), ``all`` (all archives), or a list of      |                                     |
-|                                      | individual facilities to search for files in the  |                                     |
-|                                      | data archive                                      |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``defaultsave.directory``            | A default directory to use for saving files.      | ``../data``                         |
-|                                      | the data archive                                  |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``errorreports.core_dumps``          | *Linux only*                                      | ``/var/lib/apport/coredump``        |
-|                                      | Set this variable to your system's core file      |                                     |
-|                                      | location and the error reporter will automatically|                                     |
-|                                      | extract C++ stacktraces after a crash.            |                                     |
-|                                      | You may find this location listed in              |                                     |
-|                                      | ``/proc/sys/kernel/core_pattern`` (See            |                                     |
-|                                      | `the kernel docs`_ for more info).                |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``framework.plugins.directory``      | The path to the directory that contains the       | ``../plugins``                      |
-|                                      | Mantid plugin libraries                           |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``framework.plugins.exclude``        | A list of substrings to allow libraries to be     | ``Qt5``                             |
-|                                      | skipped                                           |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``instrumentDefinition.directory``   | Where to load instrument definition files from    | ``../Test/Instrument``              |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``mantidqt.plugins.directory``       | The path to the directory containing the          | ``../plugins/qtX``                  |
-|                                      | Mantid Qt-based plugin libraries                  |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``parameterDefinition.directory``    | Where to load parameter definition files from     | ``../Test/Instrument``              |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``pythonscripts.directories``        | Python will also search the listed directories    | ``../scripts`` or ``C:/MyScripts``  |
-|                                      | when importing modules.                           |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``pythonscripts.directory``          | **DEPRECATED:** Use ``pythonscripts.directories`` | N/A                                 |
-|                                      | instead                                           |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``requiredpythonscript.directories`` | A list of directories containing Python scripts   | N/A                                 |
-|                                      | that Mantid requires to function correctly.       |                                     |
-|                                      | **WARNING:** Do not alter the default value.      |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``requiredpythonscript.directories`` | A list of directories containing Python scripts   | N/A                                 |
-|                                      | that Mantid requires to function correctly.       |                                     |
-|                                      | **WARNING:** Do not alter the default value.      |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``python.plugins.manifest``          | A path to the location of the manifest file       | N/A                                 |
-|                                      | containing paths to each of the python algorithm  |                                     |
-|                                      | files.                                            |                                     |
-|                                      | **WARNING:** Do not alter the default value.      |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
-| ``python.templates.directory``       | The directory of python .in files used as         | N/A                                 |
-|                                      | templates when generating python scripts from     |                                     |
-|                                      | within an algorithm.                              |                                     |
-+--------------------------------------+---------------------------------------------------+-------------------------------------+
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+|Property                                |Description                                        |Example value                        |
++========================================+===================================================+=====================================+
+| ``colormaps.directory``                | The directory where colormaps are located         | ``/opt/mantid/colormaps``           |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``datasearch.directories``             | A semi-colon(``;``) separated list of directories | ``../data;\\\\isis\\isis$\\ndxgem`` |
+|                                        | to use to search for data.                        |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``datacachesearch.directory``          | The directory where data cache is located         | ``/data/instrument``                |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``datasearch.searcharchive``           | ``on`` (only the default facility), ``off``       | ``on`` or ``hfir,sns``              |
+|                                        | (none), ``all`` (all archives), or a list of      |                                     |
+|                                        | individual facilities to search for files in the  |                                     |
+|                                        | data archive                                      |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``defaultsave.directory``              | A default directory to use for saving files.      | ``../data``                         |
+|                                        | the data archive                                  |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``errorreports.core_dumps``            | *Linux only*                                      | ``/var/lib/apport/coredump``        |
+|                                        | Set this variable to your system's core file      |                                     |
+|                                        | location and the error reporter will automatically|                                     |
+|                                        | extract C++ stacktraces after a crash.            |                                     |
+|                                        | You may find this location listed in              |                                     |
+|                                        | ``/proc/sys/kernel/core_pattern`` (See            |                                     |
+|                                        | `the kernel docs`_ for more info).                |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``framework.plugins.directory``        | The path to the directory that contains the       | ``../plugins``                      |
+|                                        | Mantid plugin libraries                           |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``framework.plugins.exclude``          | A list of substrings to allow libraries to be     | ``Qt5``                             |
+|                                        | skipped                                           |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``instrumentDefinition.beamlineCache`` | Whether to cache the flattened instrument         | ``On``                              |
+|                                        | (detector and component positions and             |                                     |
+|                                        | rotations) next to the ``.vtp`` geometry cache,   |                                     |
+|                                        | so that the positions do not have to be derived   |                                     |
+|                                        | from the component tree again on the next         |                                     |
+|                                        | start. Only instruments with at least 100,000     |                                     |
+|                                        | detectors are cached, and for those the file      |                                     |
+|                                        | can be tens to hundreds of MB.                    |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``instrumentDefinition.directory``     | Where to load instrument definition files from    | ``../Test/Instrument``              |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``mantidqt.plugins.directory``         | The path to the directory containing the          | ``../plugins/qtX``                  |
+|                                        | Mantid Qt-based plugin libraries                  |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``parameterDefinition.directory``      | Where to load parameter definition files from     | ``../Test/Instrument``              |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``pythonscripts.directories``          | Python will also search the listed directories    | ``../scripts`` or ``C:/MyScripts``  |
+|                                        | when importing modules.                           |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``pythonscripts.directory``            | **DEPRECATED:** Use ``pythonscripts.directories`` | N/A                                 |
+|                                        | instead                                           |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``requiredpythonscript.directories``   | A list of directories containing Python scripts   | N/A                                 |
+|                                        | that Mantid requires to function correctly.       |                                     |
+|                                        | **WARNING:** Do not alter the default value.      |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``requiredpythonscript.directories``   | A list of directories containing Python scripts   | N/A                                 |
+|                                        | that Mantid requires to function correctly.       |                                     |
+|                                        | **WARNING:** Do not alter the default value.      |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``python.plugins.manifest``            | A path to the location of the manifest file       | N/A                                 |
+|                                        | containing paths to each of the python algorithm  |                                     |
+|                                        | files.                                            |                                     |
+|                                        | **WARNING:** Do not alter the default value.      |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
+| ``python.templates.directory``         | The directory of python .in files used as         | N/A                                 |
+|                                        | templates when generating python scripts from     |                                     |
+|                                        | within an algorithm.                              |                                     |
++----------------------------------------+---------------------------------------------------+-------------------------------------+
 
 .. _the kernel docs: https://www.kernel.org/doc/Documentation/sysctl/kernel.txt
 

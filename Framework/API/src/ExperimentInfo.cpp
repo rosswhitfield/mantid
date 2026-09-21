@@ -1133,7 +1133,7 @@ void ExperimentInfo::setInstumentFromXML(const std::string &nxFilename, std::str
       // instrument. As a consequence less time is spent and less memory is
       // used. Note that this is only possible since the tree in `instrument`
       // will not be modified once we add it to the IDS.
-      instr->parseTreeAndCacheBeamline();
+      instr->parseTreeAndCacheBeamline(parser.createBeamlineCacheFileName());
 
       // Add to data service for later retrieval
       InstrumentDataService::Instance().add(instrumentNameMangled, instr);

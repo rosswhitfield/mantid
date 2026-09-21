@@ -7,6 +7,7 @@
 #include <fstream>
 #include <sstream>
 
+#include "MantidGeometry/Instrument/BeamlineCache.h"
 #include "MantidGeometry/Instrument/Detector.h"
 #include "MantidGeometry/Instrument/InstrumentDefinitionParser.h"
 #include "MantidGeometry/Instrument/ObjCompAssembly.h"
@@ -3004,6 +3005,27 @@ const std::string InstrumentDefinitionParser::createVTPFileName() {
     retVal = path.string();
   }
   return retVal;
+}
+
+/** Generates the filename of the beamline cache, which holds the flattened
+ *  positions and rotations for this instrument definition.
+ *
+ *  The cache sits next to the vtp geometry cache and is keyed the same way, so
+ *  that an edit to the instrument definition invalidates both together.
+ *
+ *  @return The beamline cache filename, or an empty string if caching is off
+ */
+const std::string InstrumentDefinitionParser::createBeamlineCacheFileName() {
+  if (!ConfigService::Instance().getValue<bool>("instrumentDefinition.beamlineCache").value_or(true))
+    return std::string();
+
+  const std::string filename = getMangledName();
+  if (filename.empty())
+    return std::string();
+
+  const std::filesystem::path path = std::filesystem::path(ConfigService::Instance().getVTPFileDirectory()) /
+                                     (filename + BeamlineCache::FILE_EXTENSION);
+  return path.string();
 }
 
 /** Return a subelement of an XML element, but also checks that there exist

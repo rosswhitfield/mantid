@@ -1,0 +1,6 @@
+- Instrument loading now caches the flattened instrument - the detector and component positions and rotations - in a
+  ``.beamline`` file alongside the existing ``.vtp`` geometry cache, so that the absolute positions do not have to be
+  derived from the component tree again the next time Mantid starts. The cache is keyed on the instrument definition in
+  the same way as the ``.vtp`` file, so editing an instrument definition regenerates it. Only instruments with at least
+  100,000 detectors are cached, because for smaller instruments the saving is not worth the file; for the largest
+  instruments the file can be tens to hundreds of MB. Set ``instrumentDefinition.beamlineCache = Off`` to switch it off.

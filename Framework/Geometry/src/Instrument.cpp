@@ -1440,12 +1440,17 @@ std::shared_ptr<ParameterMap> Instrument::makeLegacyParameterMap() const {
  * This can be called for the base instrument once it is completely created, in
  * particular when it is stored in the InstrumentDataService for reusing it
  * later and avoiding repeated tree walks if several workspaces with the same
- * instrument are loaded. */
-void Instrument::parseTreeAndCacheBeamline() {
+ * instrument are loaded.
+ *
+ * @param cacheFile :: if not empty, the path of a beamline cache file holding
+ * the flattened positions and rotations. It is read if it exists and is
+ * written otherwise, which saves the tree walk from deriving absolute
+ * positions again in a later process. */
+void Instrument::parseTreeAndCacheBeamline(const std::string &cacheFile) {
   if (isParametrized())
     throw std::logic_error(
         "Instrument::parseTreeAndCacheBeamline must be called with the base instrument, not a parametrized instrument");
-  std::tie(m_componentInfo, m_detectorInfo) = InstrumentVisitor::makeWrappers(*this);
+  std::tie(m_componentInfo, m_detectorInfo) = InstrumentVisitor::makeWrappers(*this, nullptr, cacheFile);
 }
 
 /** Return ComponentInfo and DetectorInfo for instrument given by pmap.

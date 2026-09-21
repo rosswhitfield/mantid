@@ -42,6 +42,11 @@ python.templates.directory = @MANTID_ROOT@/scripts/templates
 
 # Where to load instrument definition files from
 instrumentDefinition.directory = @MANTID_ROOT@/instrument
+# Whether to cache the flattened instrument (detector positions and rotations) alongside the
+# vtp geometry cache (On/Off). Only instruments with at least 100,000 detectors are cached; for
+# those the file can be tens to hundreds of MB, traded against the time spent deriving absolute
+# positions from the component tree on every load.
+instrumentDefinition.beamlineCache = On
 # Controls whether Mantid Workbench will use system notifications for important messages (On/Off)
 Notifications.Enabled = On
 

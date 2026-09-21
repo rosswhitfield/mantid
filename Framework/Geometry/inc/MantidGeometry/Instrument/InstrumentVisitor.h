@@ -9,6 +9,7 @@
 #include "MantidBeamline/ComponentType.h"
 #include "MantidBeamline/PixelGridComponent.h"
 #include "MantidGeometry/DllConfig.h"
+#include "MantidGeometry/Instrument/BeamlineCache.h"
 #include "MantidGeometry/Instrument/ComponentVisitor.h"
 #include <Eigen/Geometry>
 #include <Eigen/StdVector>
@@ -132,6 +133,12 @@ private:
   /// Rectangular/Grid bank pixel-grid metadata
   std::shared_ptr<std::map<size_t, Beamline::PixelGridComponent>> m_pixelGridComponents;
 
+  /// Positions and rotations restored from a cache file, or null when they are
+  /// to be derived from the component tree. When set, the walk skips the
+  /// Component::getPos()/getRotation() calls and adoptCache() swaps the cached
+  /// arrays in afterwards.
+  const BeamlineCacheData *m_cache;
+
   void markAsSourceOrSample(Mantid::Geometry::IComponent *componentId, const size_t componentIndex);
 
   std::pair<std::unique_ptr<ComponentInfo>, std::unique_ptr<DetectorInfo>> makeWrappers() const;
@@ -140,9 +147,13 @@ private:
   size_t commonRegistration(const Mantid::Geometry::IComponent &component);
 
 public:
-  InstrumentVisitor(std::shared_ptr<const Instrument> instrument);
+  InstrumentVisitor(std::shared_ptr<const Instrument> instrument, const BeamlineCacheData *cache = nullptr);
 
   void walkInstrument();
+
+  bool adoptCache();
+
+  BeamlineCacheData cacheData() const;
 
   virtual size_t registerComponentAssembly(const Mantid::Geometry::ICompAssembly &assembly) override;
 
@@ -179,7 +190,8 @@ public:
   std::shared_ptr<std::vector<detid_t>> detectorIds() const;
 
   static std::pair<std::unique_ptr<ComponentInfo>, std::unique_ptr<DetectorInfo>>
-  makeWrappers(const Instrument &instrument, ParameterMap *pmap = nullptr);
+  makeWrappers(const Instrument &instrument, ParameterMap *pmap = nullptr,
+               const std::string &cacheFile = std::string());
 };
 } // namespace Geometry
 } // namespace Mantid

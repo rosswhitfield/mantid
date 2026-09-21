@@ -217,7 +217,7 @@ public:
 
   bool isEmptyInstrument() const;
 
-  void parseTreeAndCacheBeamline();
+  void parseTreeAndCacheBeamline(const std::string &cacheFile = std::string());
   std::pair<std::unique_ptr<ComponentInfo>, std::unique_ptr<DetectorInfo>>
   makeBeamline(ParameterMap &pmap, const ParameterMap *source = nullptr) const;
   std::pair<std::unique_ptr<ComponentInfo>, std::unique_ptr<DetectorInfo>> makeBeamlineNew(ParameterMap &pmap) const;

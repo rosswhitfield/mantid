@@ -20,6 +20,7 @@
 #include "MantidGeometry/Instrument/ParameterMap.h"
 #include "MantidGeometry/Objects/CSGObject.h"
 #include "MantidKernel/EigenConversionHelpers.h"
+#include "MantidKernel/Logger.h"
 
 #include <algorithm>
 #include <memory>
@@ -28,6 +29,8 @@
 namespace Mantid::Geometry {
 
 namespace {
+Kernel::Logger g_log("InstrumentVisitor");
+
 std::shared_ptr<const std::unordered_map<detid_t, size_t>> makeDetIdToIndexMap(const std::vector<detid_t> &detIds) {
 
   const size_t nDetIds = detIds.size();
@@ -87,7 +90,7 @@ Beamline::PixelGridComponent makePixelGridComponent(const GridDetector &grid) {
  * Constructor
  * @param instrument : Instrument being visited
  */
-InstrumentVisitor::InstrumentVisitor(std::shared_ptr<const Instrument> instrument)
+InstrumentVisitor::InstrumentVisitor(std::shared_ptr<const Instrument> instrument, const BeamlineCacheData *cache)
     : m_orderedDetectorIds(
           std::make_shared<std::vector<detid_t>>(instrument->getDetectorIDs(false /*Do not skip monitors*/))),
       m_componentIds(std::make_shared<std::vector<ComponentID>>(m_orderedDetectorIds->size(), nullptr)),
@@ -114,7 +117,7 @@ InstrumentVisitor::InstrumentVisitor(std::shared_ptr<const Instrument> instrumen
       m_componentType(std::make_shared<std::vector<Beamline::ComponentType>>()),
       m_names(std::make_shared<std::vector<std::string>>(m_orderedDetectorIds->size())),
       m_sideBySideViewPositions(std::make_shared<std::map<size_t, Eigen::Vector2d>>()),
-      m_pixelGridComponents(std::make_shared<std::map<size_t, Beamline::PixelGridComponent>>()) {
+      m_pixelGridComponents(std::make_shared<std::map<size_t, Beamline::PixelGridComponent>>()), m_cache(cache) {
   if (m_instrument->isParametrized()) {
     m_pmap = m_instrument->getParameterMap().get();
   }
@@ -144,6 +147,49 @@ void InstrumentVisitor::walkInstrument() {
   }
 }
 
+/** Replace the positions and rotations skipped during the walk with the cached
+ * ones.
+ *
+ * Called after walkInstrument(), because the number of non-detector components
+ * is only known once the tree has been walked. Returns false if the cache does
+ * not describe this instrument, in which case the visitor holds placeholder
+ * positions and the caller must discard it and walk again without a cache.
+ */
+bool InstrumentVisitor::adoptCache() {
+  if (!m_cache)
+    return false;
+
+  const bool matches = m_cache->isComplete() && *m_cache->detectorIds == *m_orderedDetectorIds &&
+                       m_cache->positions->size() == m_positions->size();
+  if (!matches) {
+    g_log.information("Beamline cache does not match this instrument; deriving the flattened instrument "
+                      "from the component tree instead.");
+    return false;
+  }
+
+  m_detectorPositions = m_cache->detectorPositions;
+  m_detectorRotations = m_cache->detectorRotations;
+  m_positions = m_cache->positions;
+  m_rotations = m_cache->rotations;
+  m_cache = nullptr;
+  return true;
+}
+
+/** The arrays of this flattened instrument that are worth caching on disk.
+ *
+ * Shares ownership rather than copying, so this is cheap even for an
+ * instrument with millions of detectors.
+ */
+BeamlineCacheData InstrumentVisitor::cacheData() const {
+  BeamlineCacheData data;
+  data.detectorIds = m_orderedDetectorIds;
+  data.detectorPositions = m_detectorPositions;
+  data.detectorRotations = m_detectorRotations;
+  data.positions = m_positions;
+  data.rotations = m_rotations;
+  return data;
+}
+
 size_t InstrumentVisitor::commonRegistration(const IComponent &component) {
   const size_t componentIndex = m_componentIds->size();
   const ComponentID componentId = component.getComponentID();
@@ -152,8 +198,15 @@ size_t InstrumentVisitor::commonRegistration(const IComponent &component) {
   (*m_componentIdToIndexMap)[componentId] = componentIndex;
   // For any non-detector we extend the m_componentIds from the back
   m_componentIds->emplace_back(componentId);
-  m_positions->emplace_back(Kernel::toVector3d(component.getPos()));
-  m_rotations->emplace_back(Kernel::toQuaterniond(component.getRotation()));
+  if (m_cache) {
+    // Placeholders. adoptCache() replaces the whole array once the walk has
+    // established that the cache matches this instrument.
+    m_positions->emplace_back(Eigen::Vector3d::Zero());
+    m_rotations->emplace_back(Eigen::Quaterniond::Identity());
+  } else {
+    m_positions->emplace_back(Kernel::toVector3d(component.getPos()));
+    m_rotations->emplace_back(Kernel::toQuaterniond(component.getRotation()));
+  }
   m_shapes->emplace_back(m_nullShape);
   m_scaleFactors->emplace_back(Kernel::toVector3d(component.getScaleFactor()));
   m_names->emplace_back(component.getName());
@@ -346,8 +399,10 @@ size_t InstrumentVisitor::registerDetector(const IDetector &detector) {
   (*m_componentIdToIndexMap)[detector.getComponentID()] = detectorIndex;
   (*m_componentIds)[detectorIndex] = detector.getComponentID();
   m_assemblySortedDetectorIndices->emplace_back(detectorIndex);
-  (*m_detectorPositions)[detectorIndex] = Kernel::toVector3d(detector.getPos());
-  (*m_detectorRotations)[detectorIndex] = Kernel::toQuaterniond(detector.getRotation());
+  if (!m_cache) {
+    (*m_detectorPositions)[detectorIndex] = Kernel::toVector3d(detector.getPos());
+    (*m_detectorRotations)[detectorIndex] = Kernel::toQuaterniond(detector.getRotation());
+  }
   (*m_shapes)[detectorIndex] = detector.shape();
   (*m_scaleFactors)[detectorIndex] = Kernel::toVector3d(detector.getScaleFactor());
   if (m_instrument->isMonitor(detector.getID())) {
@@ -430,14 +485,35 @@ std::pair<std::unique_ptr<ComponentInfo>, std::unique_ptr<DetectorInfo>> Instrum
 }
 
 std::pair<std::unique_ptr<ComponentInfo>, std::unique_ptr<DetectorInfo>>
-InstrumentVisitor::makeWrappers(const Instrument &instrument, ParameterMap *pmap) {
+InstrumentVisitor::makeWrappers(const Instrument &instrument, ParameterMap *pmap, const std::string &cacheFile) {
   // Visitee instrument is base instrument if no ParameterMap
   const auto visiteeInstrument =
       pmap ? ParComponentFactory::createInstrument(std::shared_ptr<const Instrument>(&instrument, NoDeleting()),
                                                    std::shared_ptr<ParameterMap>(pmap, NoDeleting()))
            : std::shared_ptr<const Instrument>(&instrument, NoDeleting());
+
+  // A cache only describes the unparametrized instrument, so it is of no use
+  // once a ParameterMap can move components around.
+  const bool cacheable = !pmap && !cacheFile.empty();
+
+  if (cacheable) {
+    BeamlineCacheData cached;
+    if (BeamlineCache::read(cacheFile, cached)) {
+      InstrumentVisitor visitor(visiteeInstrument, &cached);
+      visitor.walkInstrument();
+      if (visitor.adoptCache())
+        return visitor.makeWrappers();
+      // The cache did not describe this instrument, so drop it and walk the
+      // tree properly. Without the removal it would be re-read, and rejected,
+      // on every subsequent load.
+      BeamlineCache::discard(cacheFile);
+    }
+  }
+
   InstrumentVisitor visitor(visiteeInstrument);
   visitor.walkInstrument();
+  if (cacheable && visitor.detectorIds()->size() >= BeamlineCache::MIN_DETECTORS)
+    BeamlineCache::write(cacheFile, visitor.cacheData());
   return visitor.makeWrappers();
 }
 } // namespace Mantid::Geometry

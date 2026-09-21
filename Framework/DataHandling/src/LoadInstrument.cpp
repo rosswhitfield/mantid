@@ -210,7 +210,7 @@ void LoadInstrument::exec() {
           // used. Note that this is only possible since the tree in `instrument`
           // will not be modified once we add it to the IDS.
           const auto timerStart = std::chrono::high_resolution_clock::now();
-          instrument->parseTreeAndCacheBeamline();
+          instrument->parseTreeAndCacheBeamline(parser.createBeamlineCacheFileName());
           addTimer("parseTreeAndCacheBeamline", timerStart, std::chrono::high_resolution_clock::now());
         }
       } else {
