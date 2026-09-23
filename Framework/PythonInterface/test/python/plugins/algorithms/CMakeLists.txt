@@ -9,6 +9,7 @@ set(TEST_PY_FILES
     AbinsAdvancedParametersTest.py
     AlignComponentsTest.py
     AlignAndFocusPowderFromFilesTest.py
+    AlignAndFocusPowderSlimNumbaTest.py
     AngularAutoCorrelationsSingleAxisTest.py
     AngularAutoCorrelationsTwoAxesTest.py
     AnstoCommonFractionalTest.py

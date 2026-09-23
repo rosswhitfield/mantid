@@ -108,6 +108,7 @@ librdkafka = ">=1.6.0,<2.14"
 matplotlib = "3.10.*"
 muparser = ">=2.3.2,<2.3.5"
 ninja = ">=1.10.2"
+numba = ">=0.61"
 numpy = "2.1.*"
 occt = { version = "7.*", build = "novtk*" }
 orsopy = "==1.2.3"

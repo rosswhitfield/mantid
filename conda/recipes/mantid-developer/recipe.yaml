@@ -28,6 +28,7 @@ requirements:
     - librdkafka ${{ librdkafka }}
     - mantid-sphinx-theme ${{ mantid_sphinx_theme }}
     - matplotlib ${{ matplotlib }}
+    - numba
     - muparser ${{ muparser }}
     - myst-parser ${{ mystparser }}
     - ninja ${{ ninja }}

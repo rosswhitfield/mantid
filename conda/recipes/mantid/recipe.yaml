@@ -93,6 +93,7 @@ outputs:
         - h5py
         - hdf5 ${{ hdf5 }}
         - muparser ${{ muparser }}
+        - numba
         - occt ${{ occt }}
         - pycifrw
         - pydantic ${{ pydantic }}
