@@ -31,7 +31,17 @@ import h5py
 import numpy as np
 from numba import get_num_threads, njit, prange
 
-from mantid.api import AlgorithmFactory, FileAction, FileProperty, MatrixWorkspaceProperty, Progress, PythonAlgorithm, WorkspaceFactory
+from mantid.api import (
+    AlgorithmFactory,
+    FileAction,
+    FileProperty,
+    MatrixWorkspaceProperty,
+    Progress,
+    PropertyMode,
+    PythonAlgorithm,
+    WorkspaceFactory,
+)
+from mantid.dataobjects import GroupingWorkspaceProperty
 from mantid.kernel import (
     Direction,
     FloatArrayBoundedValidator,
@@ -325,8 +335,11 @@ class _InstrumentDifc:
         source = np.array(list(self._component_info.sourcePosition()), dtype=np.float64)
         self._difc = _difc_from_positions(positions, sample, source, detector_info.l1())
 
-    def table(self, bank_name, difc_focus, time_conversion):
-        """``(detid_min, ratio, spectrum)`` for one bank, or None when the instrument has no such bank."""
+    def table(self, bank_name, difc_focus, time_conversion, grouping=None):
+        """``(detid_min, ratio, spectrum)`` for one bank, or None when the instrument has no such bank.
+
+        Without ``grouping`` every detector goes to spectrum 0.
+        """
         try:
             bank = self._component_info.indexOfAny(bank_name)
         except (RuntimeError, ValueError, IndexError):
@@ -339,10 +352,48 @@ class _InstrumentDifc:
         detid_min = int(detid.min())
         ratio = np.zeros(int(detid.max()) - detid_min + 1, dtype=np.float64)
         spectrum = np.full(ratio.size, -1, dtype=np.int32)
+        spec = grouping.spectrum_of(detid) if grouping is not None else np.zeros(detid.size, dtype=np.int32)
+        keep = spec >= 0
+        detid, index, spec = detid[keep], index[keep], spec[keep]
         # difc_focused / difc, as initCalibrationConstants computes it, then the time unit
-        ratio[detid - detid_min] = (difc_focus / self._difc[index]) * time_conversion
-        spectrum[detid - detid_min] = 0
+        ratio[detid - detid_min] = (difc_focus[spec] / self._difc[index]) * time_conversion
+        spectrum[detid - detid_min] = spec
         return detid_min, ratio, spectrum
+
+
+class _Grouping:
+    """A GroupingWorkspace as a detector id to output spectrum lookup.
+
+    Spectra are the non-zero group ids in ascending order, as
+    ``getGroupIDs(false)`` gives them to AlignAndFocusPowderSlim.  A detector
+    listed in more than one group lands in the last, as the C++ map does when
+    it is filled group by group.
+    """
+
+    def __init__(self, wksp):
+        self.group_ids = np.asarray(wksp.getGroupIDs(False), dtype=np.int64)
+        if self.group_ids.size == 0:
+            raise RuntimeError("The grouping workspace has no groups")
+        members = [np.asarray(wksp.getDetectorIDsOfGroup(int(group)), dtype=np.int64) for group in self.group_ids]
+        everything = np.concatenate(members)
+        if everything.size == 0:
+            raise RuntimeError("The grouping workspace has no detectors in its groups")
+        self._offset = int(everything.min())
+        self._lookup = np.full(int(everything.max()) - self._offset + 1, -1, dtype=np.int32)
+        for spectrum, detids in enumerate(members):
+            self._lookup[detids - self._offset] = spectrum
+
+    @property
+    def n_spectra(self):
+        return int(self.group_ids.size)
+
+    def spectrum_of(self, detids):
+        """The output spectrum of each detector id, or -1 for one in no group."""
+        index = np.asarray(detids, dtype=np.int64) - self._offset
+        inside = (index >= 0) & (index < self._lookup.size)
+        spectrum = np.full(index.size, -1, dtype=np.int32)
+        spectrum[inside] = self._lookup[index[inside]]
+        return spectrum
 
 
 class _Buffers:
@@ -374,6 +425,10 @@ class AlignAndFocusPowderSlimNumba(PythonAlgorithm):
             FileProperty("CalFileName", "", action=FileAction.OptionalLoad, extensions=[".h5"]),
             doc="Calibration file from SaveDiffCal, giving difc, grouping and mask. Without one, difc comes from the "
             "instrument geometry and every detector is focused into one spectrum.",
+        )
+        self.declareProperty(
+            GroupingWorkspaceProperty("GroupingWorkspace", "", direction=Direction.Input, optional=PropertyMode.Optional),
+            doc="Grouping of detectors into output spectra. Takes precedence over the grouping in CalFileName.",
         )
         positive = FloatArrayBoundedValidator(lower=0.0, exclusive=True)
         self.declareProperty(FloatArrayProperty("XMin", [0.1], positive), doc="Minimum x-value of the output binning")
@@ -434,26 +489,31 @@ class AlignAndFocusPowderSlimNumba(PythonAlgorithm):
         read_size = self.getProperty("ReadSizeFromDisk").value
 
         difc_focus = _difc_focused(l1, l2, polar)
+        grouping_wksp = self.getProperty("GroupingWorkspace").value
+        grouping = _Grouping(grouping_wksp) if grouping_wksp is not None else None
         cal_filename = self.getProperty("CalFileName").value
         if cal_filename:
-            detid_min, spectrum_of_row, difc, detid = self._load_calibration(cal_filename)
-            n_spectra = int(spectrum_of_row.max()) + 1 if spectrum_of_row.size else 0
+            detid_min, spectrum_of_row, difc, detid, n_spectra = self._load_calibration(cal_filename, grouping)
+            source = "grouping workspace" if grouping else "calibration file"
             if n_spectra != len(l2):
-                raise RuntimeError(f"The calibration file gives {n_spectra} groups but L2 and Polar have {len(l2)} values")
+                raise RuntimeError(f"The {source} gives {n_spectra} groups but L2 and Polar have {len(l2)} values")
 
             def detector_table(bank_name, time_conversion):
                 return (detid_min, *self._detector_table(detid, detid_min, spectrum_of_row, difc, difc_focus, time_conversion))
 
         else:
-            n_spectra = 1
-            if len(l2) != 1:
+            n_spectra = grouping.n_spectra if grouping else 1
+            if n_spectra != len(l2):
+                if grouping:
+                    raise RuntimeError(f"The grouping workspace gives {n_spectra} groups but L2 and Polar have {len(l2)} values")
                 raise RuntimeError(
-                    f"Without a calibration file every detector is focused into one spectrum, but L2 and Polar have {len(l2)} values"
+                    "Without a calibration file or grouping workspace every detector is focused into one spectrum, "
+                    f"but L2 and Polar have {len(l2)} values"
                 )
             instrument = _InstrumentDifc(self._load_instrument(filename))
 
             def detector_table(bank_name, time_conversion):
-                return instrument.table(bank_name, difc_focus[0], time_conversion)
+                return instrument.table(bank_name, difc_focus, time_conversion, grouping)
 
         delta = self.getProperty("XDelta").value[0]
         d_edges = _axis_from_rebin_params(
@@ -500,12 +560,13 @@ class AlignAndFocusPowderSlimNumba(PythonAlgorithm):
 
     # -----------------------------------------------------------------------
 
-    def _load_calibration(self, filename):
-        """``(detid_min, spectrum_per_row, difc_per_row, detid_per_row)`` from a SaveDiffCal file.
+    def _load_calibration(self, filename, grouping=None):
+        """``(detid_min, spectrum_per_row, difc_per_row, detid_per_row, n_spectra)`` from a SaveDiffCal file.
 
-        The output spectrum is the rank of the group id among the non-zero ids,
-        as the grouping map in AlignAndFocusPowderSlim.  Rows with group 0, with
-        ``use == 0``, or with zero difc are ignored (spectrum -1).
+        The output spectrum comes from ``grouping`` when given, else it is the
+        rank of the row's group id among the non-zero ids, as the grouping map
+        in AlignAndFocusPowderSlim.  Rows in no group, with ``use == 0``, or
+        with zero difc are ignored (spectrum -1).
         """
         with h5py.File(filename, "r") as handle:
             cal = handle["calibration"]
@@ -513,10 +574,16 @@ class AlignAndFocusPowderSlimNumba(PythonAlgorithm):
             difc = np.asarray(cal["difc"][:], dtype=np.float64)
             group = np.asarray(cal["group"][:], dtype=np.int64) if "group" in cal else np.ones(detid.size, dtype=np.int64)
             use = np.asarray(cal["use"][:], dtype=np.int64) if "use" in cal else np.ones(detid.size, dtype=np.int64)
-        group_ids = np.unique(group[group != 0])
-        spectrum = np.searchsorted(group_ids, group).astype(np.int32)
-        spectrum[(group == 0) | (use == 0) | (difc == 0.0)] = -1
-        return int(detid.min()), spectrum, difc, detid
+        if grouping is not None:
+            spectrum = grouping.spectrum_of(detid)
+            n_spectra = grouping.n_spectra
+        else:
+            group_ids = np.unique(group[group != 0])
+            spectrum = np.searchsorted(group_ids, group).astype(np.int32)
+            spectrum[group == 0] = -1
+            n_spectra = group_ids.size
+        spectrum[(use == 0) | (difc == 0.0)] = -1
+        return int(detid.min()), spectrum, difc, detid, n_spectra
 
     def _load_instrument(self, filename):
         """A one-spectrum workspace carrying the instrument, loaded as LoadEventNexus::loadInstrument does.

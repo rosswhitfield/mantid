@@ -37,13 +37,15 @@ Supported:
 - no calibration file: each detector's difc then comes from the instrument geometry and every detector is focused
   into one spectrum, as in :ref:`algm-AlignAndFocusPowderSlim`. This is the one case that loads the instrument
   definition, which for VULCAN takes about a second.
+- a ``GroupingWorkspace``, which takes precedence over the grouping in the calibration file. Its non-zero groups become
+  the output spectra in ascending order, with one ``L2`` and ``Polar`` for each.
 - one set of ``XMin``, ``XDelta`` and ``XMax`` for all spectra, in d-spacing, time-of-flight or momentum transfer
 - logarithmic or linear binning
 - loading the logs, with an allow or block list
 
 Not supported, compared to :ref:`algm-AlignAndFocusPowderSlim`:
 
-- grouping and calibration workspaces, and separate grouping files
+- calibration and mask workspaces, and separate grouping files
 - different binning for each spectrum
 - filtering by time, filtering bad pulses, and splitting
 - setting the sample name from the file
@@ -51,6 +53,8 @@ Not supported, compared to :ref:`algm-AlignAndFocusPowderSlim`:
 With a calibration file, an event counts if its detector is in the calibration. :ref:`algm-AlignAndFocusPowderSlim`
 also requires the detector to be in the bank being read, which only matters if a bank's events name detectors of
 another bank.
+A detector that the ``GroupingWorkspace`` puts in a group but the calibration file does not cover is ignored here,
+where :ref:`algm-AlignAndFocusPowderSlim` stops with an error.
 
 Usage
 -----

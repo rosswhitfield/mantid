@@ -12,7 +12,7 @@ from unittest import mock
 import h5py
 import numpy as np
 
-from mantid.simpleapi import AlignAndFocusPowderSlim, AlignAndFocusPowderSlimNumba, mtd
+from mantid.simpleapi import AlignAndFocusPowderSlim, AlignAndFocusPowderSlimNumba, CreateGroupingWorkspace, mtd
 
 VULCAN = "VULCAN_218062.nxs.h5"
 L1 = 43.755
@@ -23,10 +23,12 @@ POLAR = [90.0, 150.0, 65.5]
 def write_calibration(filename):
     """A synthetic SaveDiffCal file: three groups, a spread of difc, and some masked pixels.
 
-    It covers a plain range of detector ids; ids that are not in the data
-    change nothing, and it saves loading the instrument to find the real ones.
+    It covers a plain range of detector ids, which saves loading the instrument
+    to find the real ones; ids that are not in the data change nothing.  The
+    range must include every id in the data: AlignAndFocusPowderSlim throws
+    when a GroupingWorkspace puts a detector in a group without calibrating it.
     """
-    detid = np.arange(0, 400000, dtype=np.int32)
+    detid = np.arange(0, 600000, dtype=np.int32)
     group = (1 + (detid // 20000) % 3).astype(np.int32)
     # each group's nominal difc, spread by up to 3% so the calibration is not a no-op
     h_over_m = (6.62606896e-34 * 1e10) / (2.0 * 1.674927211e-27 * 1e6)
@@ -53,6 +55,21 @@ class AlignAndFocusPowderSlimNumbaTest(unittest.TestCase):
         cls._cal_file = os.path.join(cls._tmp_dir.name, "vulcan_synthetic_cal.h5")
         write_calibration(cls._cal_file)
 
+        # One group per bank of the current VULCAN definition, then bank 2 unset and
+        # bank 3 merged into bank 1. The current definition has banks the file's
+        # does not, so some groups name detectors that never appear in the data.
+        grouping = CreateGroupingWorkspace(
+            InstrumentName="VULCAN", GroupDetectorsBy="bank", OutputWorkspace="vulcan_banks", StoreInADS=False
+        )[0]
+        for index in range(grouping.getNumberHistograms()):
+            group = grouping.readY(index)[0]
+            if group == 2:
+                grouping.setY(index, np.array([0.0]))
+            elif group == 3:
+                grouping.setY(index, np.array([1.0]))
+        cls._grouping = grouping
+        cls._n_groups = len(grouping.getGroupIDs(False))
+
     @classmethod
     def tearDownClass(cls):
         cls._tmp_dir.cleanup()
@@ -60,9 +77,21 @@ class AlignAndFocusPowderSlimNumbaTest(unittest.TestCase):
     def tearDown(self):
         mtd.clear()
 
+    def _grouped(self):
+        """GroupingWorkspace with matching geometry, one L2 and Polar per group."""
+        return dict(
+            GroupingWorkspace=self._grouping,
+            L1=L1,
+            L2=list(np.linspace(2.0, 2.5, self._n_groups)),
+            Polar=list(np.linspace(60.0, 150.0, self._n_groups)),
+        )
+
     def _compare(self, numba_only=None, calibrated=True, **props):
         """Run both algorithms and require identical histograms and run properties."""
-        geometry = dict(CalFileName=self._cal_file, L1=L1, L2=L2, Polar=POLAR) if calibrated else dict(L1=L1, L2=[2.3], Polar=[120.0])
+        if "GroupingWorkspace" in props:
+            geometry = dict(CalFileName=self._cal_file) if calibrated else {}
+        else:
+            geometry = dict(CalFileName=self._cal_file, L1=L1, L2=L2, Polar=POLAR) if calibrated else dict(L1=L1, L2=[2.3], Polar=[120.0])
         props = dict(LogAllowList=["frequency", "proton_charge"], **geometry, **props)
         ref = AlignAndFocusPowderSlim(VULCAN, OutputWorkspace="ref", **props)
         new = AlignAndFocusPowderSlimNumba(VULCAN, OutputWorkspace="new", **props, **(numba_only or {}))
@@ -132,6 +161,20 @@ class AlignAndFocusPowderSlimNumbaTest(unittest.TestCase):
     def test_no_calibration_needs_one_spectrum(self):
         with self.assertRaisesRegex(RuntimeError, "one spectrum"):
             AlignAndFocusPowderSlimNumba(VULCAN, OutputWorkspace="new", L1=L1, L2=L2, Polar=POLAR)
+
+    def test_grouping_workspace_overrides_calibration_groups(self):
+        self._compare(BinningUnits="dSpacing", BinningMode="Logarithmic", XMin=[0.3], XMax=[3.0], XDelta=[0.0016], **self._grouped())
+
+    def test_grouping_workspace_without_calibration_matches(self):
+        self._compare(
+            calibrated=False, BinningUnits="dSpacing", BinningMode="Logarithmic", XMin=[0.3], XMax=[3.0], XDelta=[0.0016], **self._grouped()
+        )
+
+    def test_grouping_workspace_group_count_must_match_geometry(self):
+        with self.assertRaisesRegex(RuntimeError, f"grouping workspace gives {self._n_groups} groups"):
+            AlignAndFocusPowderSlimNumba(
+                VULCAN, OutputWorkspace="new", CalFileName=self._cal_file, GroupingWorkspace=self._grouping, L1=L1, L2=L2, Polar=POLAR
+            )
 
     def test_ragged_binning_rejected(self):
         with self.assertRaisesRegex(RuntimeError, "ragged"):
