@@ -60,9 +60,10 @@ class AlignAndFocusPowderSlimNumbaTest(unittest.TestCase):
     def tearDown(self):
         mtd.clear()
 
-    def _compare(self, numba_only=None, **props):
+    def _compare(self, numba_only=None, calibrated=True, **props):
         """Run both algorithms and require identical histograms and run properties."""
-        props = dict(CalFileName=self._cal_file, L1=L1, L2=L2, Polar=POLAR, LogAllowList=["frequency", "proton_charge"], **props)
+        geometry = dict(CalFileName=self._cal_file, L1=L1, L2=L2, Polar=POLAR) if calibrated else dict(L1=L1, L2=[2.3], Polar=[120.0])
+        props = dict(LogAllowList=["frequency", "proton_charge"], **geometry, **props)
         ref = AlignAndFocusPowderSlim(VULCAN, OutputWorkspace="ref", **props)
         new = AlignAndFocusPowderSlimNumba(VULCAN, OutputWorkspace="new", **props, **(numba_only or {}))
 
@@ -120,6 +121,17 @@ class AlignAndFocusPowderSlimNumbaTest(unittest.TestCase):
                 XMax=[3.0],
                 XDelta=[0.0016],
             )
+
+    def test_no_calibration_matches(self):
+        # difc from the instrument geometry, every detector in one spectrum
+        self._compare(calibrated=False, BinningUnits="dSpacing", BinningMode="Logarithmic", XMin=[0.3], XMax=[3.0], XDelta=[0.0016])
+
+    def test_no_calibration_tof_matches(self):
+        self._compare(calibrated=False, BinningUnits="TOF", BinningMode="Linear", XMin=[1000.0], XMax=[33000.0], XDelta=[10.0])
+
+    def test_no_calibration_needs_one_spectrum(self):
+        with self.assertRaisesRegex(RuntimeError, "one spectrum"):
+            AlignAndFocusPowderSlimNumba(VULCAN, OutputWorkspace="new", L1=L1, L2=L2, Polar=POLAR)
 
     def test_ragged_binning_rejected(self):
         with self.assertRaisesRegex(RuntimeError, "ragged"):

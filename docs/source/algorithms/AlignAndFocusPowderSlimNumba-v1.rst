@@ -34,17 +34,23 @@ focused geometry, as :ref:`algm-AlignAndFocusPowderSlim` does.
 Supported:
 
 - a calibration file from :ref:`algm-SaveDiffCal`, giving the calibration, the grouping and the mask
+- no calibration file: each detector's difc then comes from the instrument geometry and every detector is focused
+  into one spectrum, as in :ref:`algm-AlignAndFocusPowderSlim`. This is the one case that loads the instrument
+  definition, which for VULCAN takes about a second.
 - one set of ``XMin``, ``XDelta`` and ``XMax`` for all spectra, in d-spacing, time-of-flight or momentum transfer
 - logarithmic or linear binning
 - loading the logs, with an allow or block list
 
 Not supported, compared to :ref:`algm-AlignAndFocusPowderSlim`:
 
-- running without a calibration file
 - grouping and calibration workspaces, and separate grouping files
 - different binning for each spectrum
 - filtering by time, filtering bad pulses, and splitting
 - setting the sample name from the file
+
+With a calibration file, an event counts if its detector is in the calibration. :ref:`algm-AlignAndFocusPowderSlim`
+also requires the detector to be in the bank being read, which only matters if a bank's events name detectors of
+another bank.
 
 Usage
 -----

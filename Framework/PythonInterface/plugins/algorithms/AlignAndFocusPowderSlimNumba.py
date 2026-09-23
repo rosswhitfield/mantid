@@ -9,9 +9,10 @@
 The events never become Mantid objects.  Each bank's ``event_id`` and
 ``event_time_offset`` columns are read in chunks into two reused NumPy buffers,
 histogrammed by a numba kernel into one per-thread array of counts, and only the
-final focused histograms become a Workspace2D.  The instrument is never loaded:
-the output gets its geometry from EditInstrumentGeometry, which is all the C++
-algorithm keeps of it anyway.
+final focused histograms become a Workspace2D.  The output gets its geometry from
+EditInstrumentGeometry, which is all the C++ algorithm keeps of the instrument,
+so the instrument definition is only loaded when there is no calibration file
+and difc has to come from the detector positions.
 
 Output is intended to be bit-identical to AlignAndFocusPowderSlim for the
 options implemented here.  Floating point order matters for that: the event
@@ -270,6 +271,80 @@ class _DirectReader:
         flush()
 
 
+# error_model="numpy": dividing by zero gives inf, as in C++, rather than raising.
+# Monitors on the beam line do that; they are skipped afterwards.
+@njit(cache=True, error_model="numpy")
+def _difc_from_positions(positions, sample, source, l1):
+    """DetectorInfo::difcUncalibrated for every detector, operation for operation.
+
+    ``1 / tofToDSpacingFactor(l1, l2, twoTheta, 0)``, with l2 and twoTheta as
+    DetectorInfo computes them from the positions.  Compiled so that sin and
+    acos come from the same maths library as the C++, which NumPy's own
+    vectorised versions need not match to the last bit.
+    """
+    beam_x = sample[0] - source[0]
+    beam_y = sample[1] - source[1]
+    beam_z = sample[2] - source[2]
+    beam_norm = math.sqrt(beam_x * beam_x + beam_y * beam_y + beam_z * beam_z)
+    difc = np.empty(positions.shape[0])
+    for i in range(positions.shape[0]):
+        x = positions[i, 0] - sample[0]
+        y = positions[i, 1] - sample[1]
+        z = positions[i, 2] - sample[2]
+        l2 = math.sqrt(x * x + y * y + z * z)
+        ratio = (x * beam_x + y * beam_y + z * beam_z) / (l2 * beam_norm)
+        if ratio >= 1.0:
+            two_theta = 0.0
+        elif ratio <= -1.0:
+            two_theta = math.pi
+        else:
+            two_theta = math.acos(ratio)
+        sin_theta = math.sin(two_theta / 2)
+        sin_theta *= l1 + l2
+        difc[i] = 1.0 / ((1.0 * _H_OVER_NEUTRON_MASS) / sin_theta)
+    return difc
+
+
+class _InstrumentDifc:
+    """Uncalibrated difc for each detector, and the detectors in each bank.
+
+    Mirrors AlignAndFocusPowderSlim without a calibration: monitors are
+    skipped, and a bank's events count only for detectors inside that bank's
+    component, which is where getDetectorIDsInBank looks.
+    """
+
+    def __init__(self, wksp):
+        # componentInfo refers into the workspace, so the workspace must outlive it
+        self._wksp = wksp
+        detector_info = wksp.detectorInfo()
+        self._component_info = wksp.componentInfo()
+        self._detids = np.asarray(detector_info.detectorIDs(), dtype=np.int64)
+        self._monitor = np.array([detector_info.isMonitor(i) for i in range(len(detector_info))], dtype=bool)
+        positions = np.ascontiguousarray(detector_info.allPositions(), dtype=np.float64)
+        sample = np.array(list(self._component_info.samplePosition()), dtype=np.float64)
+        source = np.array(list(self._component_info.sourcePosition()), dtype=np.float64)
+        self._difc = _difc_from_positions(positions, sample, source, detector_info.l1())
+
+    def table(self, bank_name, difc_focus, time_conversion):
+        """``(detid_min, ratio, spectrum)`` for one bank, or None when the instrument has no such bank."""
+        try:
+            bank = self._component_info.indexOfAny(bank_name)
+        except (RuntimeError, ValueError, IndexError):
+            return None
+        index = np.asarray(self._component_info.detectorsInSubtree(bank), dtype=np.int64)
+        index = index[~self._monitor[index]]
+        if index.size == 0:
+            return None
+        detid = self._detids[index]
+        detid_min = int(detid.min())
+        ratio = np.zeros(int(detid.max()) - detid_min + 1, dtype=np.float64)
+        spectrum = np.full(ratio.size, -1, dtype=np.int32)
+        # difc_focused / difc, as initCalibrationConstants computes it, then the time unit
+        ratio[detid - detid_min] = (difc_focus / self._difc[index]) * time_conversion
+        spectrum[detid - detid_min] = 0
+        return detid_min, ratio, spectrum
+
+
 class _Buffers:
     """One chunk's detector ids and times of flight, reused for every chunk."""
 
@@ -296,8 +371,9 @@ class AlignAndFocusPowderSlimNumba(PythonAlgorithm):
     def PyInit(self):
         self.declareProperty(FileProperty("Filename", "", action=FileAction.Load, extensions=[".nxs.h5"]), doc="Raw event NeXus file")
         self.declareProperty(
-            FileProperty("CalFileName", "", action=FileAction.Load, extensions=[".h5"]),
-            doc="Calibration file from SaveDiffCal, giving difc, grouping and mask",
+            FileProperty("CalFileName", "", action=FileAction.OptionalLoad, extensions=[".h5"]),
+            doc="Calibration file from SaveDiffCal, giving difc, grouping and mask. Without one, difc comes from the "
+            "instrument geometry and every detector is focused into one spectrum.",
         )
         positive = FloatArrayBoundedValidator(lower=0.0, exclusive=True)
         self.declareProperty(FloatArrayProperty("XMin", [0.1], positive), doc="Minimum x-value of the output binning")
@@ -357,12 +433,28 @@ class AlignAndFocusPowderSlimNumba(PythonAlgorithm):
         logarithmic = self.getProperty("BinningMode").value == "Logarithmic"
         read_size = self.getProperty("ReadSizeFromDisk").value
 
-        detid_min, spectrum_of_row, difc, detid = self._load_calibration(self.getProperty("CalFileName").value)
-        n_spectra = int(spectrum_of_row.max()) + 1 if spectrum_of_row.size else 0
-        if n_spectra != len(l2):
-            raise RuntimeError(f"The calibration file gives {n_spectra} groups but L2 and Polar have {len(l2)} values")
-
         difc_focus = _difc_focused(l1, l2, polar)
+        cal_filename = self.getProperty("CalFileName").value
+        if cal_filename:
+            detid_min, spectrum_of_row, difc, detid = self._load_calibration(cal_filename)
+            n_spectra = int(spectrum_of_row.max()) + 1 if spectrum_of_row.size else 0
+            if n_spectra != len(l2):
+                raise RuntimeError(f"The calibration file gives {n_spectra} groups but L2 and Polar have {len(l2)} values")
+
+            def detector_table(bank_name, time_conversion):
+                return (detid_min, *self._detector_table(detid, detid_min, spectrum_of_row, difc, difc_focus, time_conversion))
+
+        else:
+            n_spectra = 1
+            if len(l2) != 1:
+                raise RuntimeError(
+                    f"Without a calibration file every detector is focused into one spectrum, but L2 and Polar have {len(l2)} values"
+                )
+            instrument = _InstrumentDifc(self._load_instrument(filename))
+
+            def detector_table(bank_name, time_conversion):
+                return instrument.table(bank_name, difc_focus[0], time_conversion)
+
         delta = self.getProperty("XDelta").value[0]
         d_edges = _axis_from_rebin_params(
             self.getProperty("XMin").value[0], delta if not logarithmic else -abs(delta), self.getProperty("XMax").value[0], logarithmic
@@ -391,10 +483,14 @@ class AlignAndFocusPowderSlimNumba(PythonAlgorithm):
                 progress = Progress(self, start=0.0, end=0.95, nreports=len(banks))
                 for entry_name, n_events, time_conversion in banks:
                     progress.report(f"Processing {entry_name}")
-                    ratio, spectrum = self._detector_table(detid, detid_min, spectrum_of_row, difc, difc_focus, time_conversion)
+                    table = detector_table(entry_name.split("_", 1)[0], time_conversion)
+                    if table is None:
+                        self.log().warning(f"Skipping {entry_name}: the instrument has no component with that bank's name")
+                        continue
+                    bank_detid_min, ratio, spectrum = table
                     group = handle[f"{_ENTRY}/{entry_name}"]
                     self._stream(
-                        group, n_events, read_size, reader, detid_min, ratio, spectrum, edges, n_bins, inv_step, logarithmic, local
+                        group, n_events, read_size, reader, bank_detid_min, ratio, spectrum, edges, n_bins, inv_step, logarithmic, local
                     )
             finally:
                 reader.close()
@@ -421,6 +517,33 @@ class AlignAndFocusPowderSlimNumba(PythonAlgorithm):
         spectrum = np.searchsorted(group_ids, group).astype(np.int32)
         spectrum[(group == 0) | (use == 0) | (difc == 0.0)] = -1
         return int(detid.min()), spectrum, difc, detid
+
+    def _load_instrument(self, filename):
+        """A one-spectrum workspace carrying the instrument, loaded as LoadEventNexus::loadInstrument does.
+
+        Only needed without a calibration file, for the detector positions.
+        """
+        wksp = WorkspaceFactory.create("Workspace2D", NVectors=1, XLength=2, YLength=1)
+        from_nexus = self.createChildAlgorithm("LoadIDFFromNexus", enableLogging=False)
+        from_nexus.setProperty("Workspace", wksp)
+        from_nexus.setProperty("Filename", filename)
+        from_nexus.setProperty("InstrumentParentPath", _ENTRY)
+        try:
+            from_nexus.execute()
+            wksp = from_nexus.getProperty("Workspace").value
+        except RuntimeError:
+            # no instrument_xml in the file: find the definition by name and run start
+            with h5py.File(filename, "r") as handle:
+                name = _text(handle[f"{_ENTRY}/instrument/name"][()])
+                if "start_time" in handle[_ENTRY]:
+                    wksp.mutableRun().addProperty("run_start", _text(handle[f"{_ENTRY}/start_time"][()]), True)
+            by_name = self.createChildAlgorithm("LoadInstrument")
+            by_name.setProperty("Workspace", wksp)
+            by_name.setProperty("InstrumentName", name)
+            by_name.setProperty("RewriteSpectraMap", False)
+            by_name.execute()
+            wksp = by_name.getProperty("Workspace").value
+        return wksp
 
     def _detector_table(self, detid, detid_min, spectrum_of_row, difc, difc_focus, time_conversion):
         """Dense lookups indexed by ``detid - detid_min``: the calibration factor and output spectrum."""
