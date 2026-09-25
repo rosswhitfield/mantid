@@ -21,6 +21,7 @@
 
 using Mantid::DataHandling::AlignAndFocusPowderSlim::ByteRun;
 using Mantid::DataHandling::AlignAndFocusPowderSlim::DirectEventReader;
+using Mantid::DataHandling::AlignAndFocusPowderSlim::ElementRange;
 using Mantid::DataHandling::AlignAndFocusPowderSlim::ParallelFileReader;
 using Mantid::DataHandling::AlignAndFocusPowderSlim::planSpans;
 
@@ -159,6 +160,7 @@ public:
     H5::H5File file(m_file.path(), H5F_ACC_RDONLY);
     DirectEventReader reader(m_file.path(), file, m_banks, 4);
     for (const std::string path : {"/entry/bank1_events/event_id", "/entry/bank1_events/event_time_offset"}) {
+      reader.locateChunks({{path, 0, NUM_EVENTS}});
       const auto *column = reader.column(path);
       TS_ASSERT(column);
       TS_ASSERT_EQUALS(column->numElements, NUM_EVENTS);
@@ -191,6 +193,40 @@ public:
     }
   }
 
+  void test_index_leaves_are_read_only_when_needed() {
+    H5::H5File file(m_file.path(), H5F_ACC_RDONLY);
+    DirectEventReader reader(m_file.path(), file, m_banks, 4);
+    // the upper levels are read up front; bank1's 2,000 chunks need many leaves, none read yet
+    TS_ASSERT_LESS_THAN(0, reader.numIndexNodes());
+    TS_ASSERT_EQUALS(reader.numLeavesRead(), 0);
+    const std::string path("/entry/bank1_events/event_id");
+    const auto *column = reader.column(path);
+    TS_ASSERT_EQUALS(column->chunkOffsets[0], std::numeric_limits<uint64_t>::max());
+
+    // before a chunk is located, its position hint is the address of the leaf that holds it
+    const auto hint = reader.positionHint(path, 0);
+    TS_ASSERT_LESS_THAN(0, hint);
+
+    // a few elements need one leaf
+    std::vector<uint32_t> ids(7);
+    TS_ASSERT(reader.read(path, 4, {5}, {7}, reinterpret_cast<char *>(ids.data())));
+    TS_ASSERT_EQUALS(reader.numLeavesRead(), 1);
+    TS_ASSERT_EQUALS(ids.front(), detidValue(5));
+    TS_ASSERT_EQUALS(reader.positionHint(path, 0), column->chunkOffsets[0]);
+    // locating them again reads nothing more
+    reader.locateChunks({{path, 5, 7}});
+    TS_ASSERT_EQUALS(reader.numLeavesRead(), 1);
+
+    // the whole column needs every leaf, each read once
+    reader.locateChunks({{path, 0, NUM_EVENTS}});
+    const auto allLeaves = reader.numLeavesRead();
+    TS_ASSERT_LESS_THAN(10, allLeaves);
+    TS_ASSERT(std::none_of(column->chunkOffsets.cbegin(), column->chunkOffsets.cend(),
+                           [](uint64_t offset) { return offset == std::numeric_limits<uint64_t>::max(); }));
+    reader.locateChunks({{path, 0, NUM_EVENTS}});
+    TS_ASSERT_EQUALS(reader.numLeavesRead(), allLeaves);
+  }
+
   void test_read_declines_what_it_does_not_handle() {
     H5::H5File file(m_file.path(), H5F_ACC_RDONLY);
     DirectEventReader reader(m_file.path(), file, m_banks, 4);
@@ -216,8 +252,10 @@ public:
         const auto path = "/entry/" + bank + "/" + name;
         const auto *column = reader.column(path);
         TS_ASSERT(column);
-        if (column)
+        if (column) {
+          reader.locateChunks({{path, 0, column->numElements}});
           TS_ASSERT_EQUALS(column->chunkOffsets, chunkOffsetsFromHDF5(file, path));
+        }
       }
     }
   }

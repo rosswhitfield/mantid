@@ -347,12 +347,16 @@ void AlignAndFocusPowderSlim::exec() {
   Kernel::Timer timer;
   double setupSeconds{0.}, indexSeconds{0.}, eventSeconds{0.};
   std::string eventDetail;
+  std::shared_ptr<DirectEventReader> directReader;
   auto reportTiming = [&](const double finishSeconds) {
     std::ostringstream report;
     report << std::fixed << std::setprecision(2) << "Timing: setup " << setupSeconds << " s, ";
-    if (indexSeconds > 0.)
+    if (directReader)
       report << "chunk index " << indexSeconds << " s, ";
     report << "events " << eventSeconds << " s" << eventDetail << ", finishing " << finishSeconds << " s";
+    if (directReader)
+      report << "; index leaves read while reading events: " << directReader->numLeavesRead() << " in "
+             << directReader->leafSeconds() << " s";
     g_log.information() << report.str() << "\n";
   };
 
@@ -522,12 +526,12 @@ void AlignAndFocusPowderSlim::exec() {
 
   // one direct reader for every loader: it locates the chunks of every bank's event columns up front
   const std::string readMode = getProperty(PropertyNames::EVENT_READ_MODE);
-  std::shared_ptr<DirectEventReader> directReader;
   if (readMode != READ_HDF5) {
     directReader = std::make_shared<DirectEventReader>(filename, h5file, bankEntryNames);
     g_log.information() << "Reading " << directReader->numDirectColumns() << " of "
-                        << directReader->numColumnsExamined() << " event columns directly; located their chunks from "
-                        << directReader->numIndexNodes() << " index nodes in " << std::fixed << std::setprecision(2)
+                        << directReader->numColumnsExamined()
+                        << " event columns directly; read the upper levels of their chunk indexes, "
+                        << directReader->numIndexNodes() << " nodes, in " << std::fixed << std::setprecision(2)
                         << directReader->indexSeconds() << " s\n";
     indexSeconds = timer.elapsed();
   }
@@ -549,7 +553,8 @@ void AlignAndFocusPowderSlim::exec() {
       std::ostringstream detail;
       detail << std::fixed << std::setprecision(2) << " (file order: waiting for reads "
              << task.timing().waitingForReads << " s, histogramming " << task.timing().histogramming
-             << " s, preparing reads " << task.timing().preparingReads << " s)";
+             << " s, preparing reads " << task.timing().preparingReads << " s, of which finding chunks "
+             << task.timing().findingChunks << " s)";
       eventDetail = detail.str();
     } else {
       if (readMode == READ_DIRECT_FILE_ORDER)

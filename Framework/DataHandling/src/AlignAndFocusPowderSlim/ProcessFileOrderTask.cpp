@@ -101,10 +101,10 @@ ProcessFileOrderTask::ProcessFileOrderTask(std::vector<std::string> &bankEntryNa
       }
       if (batch.numEvents == 0)
         continue;
-      // where the batch starts in the file, to order the batches of all banks by position
+      // roughly where the batch starts in the file, to order the batches of all banks by position; the chunks are
+      // located later, as their waves come up
       const auto first = batch.offsets.front();
-      batch.filePosition = std::min(detidColumn->chunkOffsets[first / detidColumn->chunkElements],
-                                    tofColumn->chunkOffsets[first / tofColumn->chunkElements]);
+      batch.filePosition = std::min(m_reader->positionHint(detidPath, first), m_reader->positionHint(tofPath, first));
       m_batches.push_back(std::move(batch));
     }
   }
@@ -127,6 +127,20 @@ ProcessFileOrderTask::ProcessFileOrderTask(std::vector<std::string> &bankEntryNa
 }
 
 std::vector<ParallelFileReader::Task> ProcessFileOrderTask::prepareWave(const Wave &wave, WaveBuffer &buffer) {
+  // locate the wave's chunks first, reading the index leaves that hold them in one round
+  const auto locateStart = std::chrono::steady_clock::now();
+  std::vector<ElementRange> ranges;
+  for (size_t index = wave.first; index < wave.second; ++index) {
+    const auto &batch = m_batches[index];
+    const auto &bank = m_banks[batch.bank];
+    for (size_t slab = 0; slab < batch.offsets.size(); ++slab) {
+      ranges.push_back({bank.detidPath, batch.offsets[slab], batch.slabsizes[slab]});
+      ranges.push_back({bank.tofPath, batch.offsets[slab], batch.slabsizes[slab]});
+    }
+  }
+  m_reader->locateChunks(ranges);
+  m_timing.findingChunks += secondsSince(locateStart);
+
   std::vector<ByteRun> runs;
   size_t used = 0;
   for (size_t index = wave.first; index < wave.second; ++index) {

@@ -16,8 +16,11 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <numeric>
 #include <optional>
+#include <set>
 #include <stdexcept>
+#include <tuple>
 
 #ifndef _WIN32
 #include <sys/statvfs.h>
@@ -136,29 +139,85 @@ std::pair<uint64_t, uint32_t> btreeRoot(std::istream &stream, uint64_t headerAdd
   throw Unsupported("no layout message");
 }
 
+/// A B-tree node of a raw-data chunk index, parsed
+struct Node {
+  uint8_t level{0};
+  /// element offset of each key; one more than there are children, the last being an upper bound
+  std::vector<uint64_t> keys;
+  /// stored size of each child chunk (meaningful in leaves)
+  std::vector<uint64_t> storedSizes;
+  std::vector<uint64_t> children;
+};
+
+std::optional<Node> parseNode(const std::vector<char> &data, uint32_t dimensionality, uint64_t offsetSize) {
+  if (data.size() < 8 + 2 * offsetSize || std::memcmp(data.data(), "TREE", 4) != 0 ||
+      static_cast<uint8_t>(data[4]) != BTREE_RAW_DATA_NODE)
+    return std::nullopt;
+  Node node;
+  node.level = static_cast<uint8_t>(data[5]);
+  const auto entries = readLittleEndian(data.data() + 6, 2);
+  const uint64_t keySize = 8 + 8 * static_cast<uint64_t>(dimensionality);
+  if (8 + 2 * offsetSize + (entries + 1) * keySize + entries * offsetSize > data.size())
+    return std::nullopt;
+  size_t position = 8 + 2 * offsetSize; // skip the sibling addresses
+  for (uint64_t entry = 0; entry <= entries; ++entry) {
+    // key: stored chunk size (4 bytes), filter mask (4 bytes), then the chunk's offset in each dimension
+    node.storedSizes.push_back(readLittleEndian(data.data() + position, 4));
+    node.keys.push_back(readLittleEndian(data.data() + position + 8, 8));
+    position += keySize;
+    if (entry < entries) {
+      node.children.push_back(readLittleEndian(data.data() + position, offsetSize));
+      position += offsetSize;
+    }
+  }
+  return node;
+}
+
+/// Record a leaf's chunk offsets; false if it is not the plain unfiltered leaf expected or leaves gaps in
+/// [firstChunk, endChunk).
+bool applyLeaf(const Node &leaf, ChunkedColumn &column, uint64_t firstChunk, uint64_t endChunk) {
+  if (leaf.level != 0)
+    return false;
+  uint64_t found = 0;
+  for (size_t entry = 0; entry < leaf.children.size(); ++entry) {
+    const auto elementOffset = leaf.keys[entry];
+    const auto chunk = elementOffset / column.chunkElements;
+    if (elementOffset % column.chunkElements != 0 || chunk < firstChunk || chunk >= endChunk ||
+        leaf.storedSizes[entry] != column.chunkElements * column.elementSize)
+      return false;
+    if (column.chunkOffsets[chunk] == std::numeric_limits<uint64_t>::max())
+      ++found;
+    column.chunkOffsets[chunk] = leaf.children[entry];
+  }
+  return found == endChunk - firstChunk; // otherwise some chunks were never written
+}
+
 /// A column whose chunk index is being read.
 struct IndexJob {
   std::string path;
   ChunkedColumn column;
   uint32_t dimensionality{0};
+  uint64_t nodeBytes{0};
+  /// (address, first chunk, end chunk) of each leaf; a leaf read already has its chunks in column
+  std::vector<std::tuple<uint64_t, uint64_t, uint64_t>> leaves;
+  std::vector<char> leafRead;
   bool failed{false};
 };
 
-/** Fill in the chunk offsets of every job by reading the B-trees level by level: every node of a level, across all
- * the trees, is fetched at once on the pool. Jobs whose trees cannot be read are marked failed.
+/** Read the levels of every job's B-tree above the leaves, level by level: every node of a level, across all the
+ * trees, is fetched at once on the pool. The leaves' addresses and chunk ranges are recorded; a tree whose root is
+ * itself a leaf is read completely. Jobs whose trees cannot be read are marked failed.
  * @return the number of nodes read
  */
-size_t readChunkIndexes(ParallelFileReader &reader, std::vector<IndexJob> &jobs, std::vector<uint64_t> roots,
-                        const Superblock &superblock) {
+size_t readUpperLevels(ParallelFileReader &reader, std::vector<IndexJob> &jobs, std::vector<uint64_t> roots,
+                       const Superblock &superblock) {
   size_t numNodes = 0;
   const uint64_t offsetSize = superblock.sizeOfOffsets;
-  // a node holds at most 2K entries; keys are the chunk size, filter mask and one 8-byte offset per dimension
-  std::vector<uint64_t> nodeBytes(jobs.size());
-  for (size_t i = 0; i < jobs.size(); ++i) {
-    const uint64_t keySize = 8 + 8 * static_cast<uint64_t>(jobs[i].dimensionality);
-    nodeBytes[i] = 8 + 2 * offsetSize + (2 * superblock.istoreK + 1) * keySize + 2 * superblock.istoreK * offsetSize;
+  for (auto &job : jobs) {
+    // a node holds at most 2K entries; keys are the chunk size, filter mask and one 8-byte offset per dimension
+    const uint64_t keySize = 8 + 8 * static_cast<uint64_t>(job.dimensionality);
+    job.nodeBytes = 8 + 2 * offsetSize + (2 * superblock.istoreK + 1) * keySize + 2 * superblock.istoreK * offsetSize;
   }
-  std::vector<size_t> found(jobs.size(), 0);
 
   std::vector<std::pair<size_t, uint64_t>> frontier; // (job, node address)
   for (size_t i = 0; i < jobs.size(); ++i)
@@ -171,7 +230,7 @@ size_t readChunkIndexes(ParallelFileReader &reader, std::vector<IndexJob> &jobs,
     tasks.reserve(frontier.size());
     for (size_t n = 0; n < frontier.size(); ++n) {
       tasks.emplace_back([&, n](std::istream &stream) {
-        nodes[n] = readUpTo(stream, frontier[n].second, nodeBytes[frontier[n].first]);
+        nodes[n] = readUpTo(stream, frontier[n].second, jobs[frontier[n].first].nodeBytes);
       });
     }
     reader.run(std::move(tasks));
@@ -179,53 +238,60 @@ size_t readChunkIndexes(ParallelFileReader &reader, std::vector<IndexJob> &jobs,
 
     std::vector<std::pair<size_t, uint64_t>> next;
     for (size_t n = 0; n < frontier.size(); ++n) {
-      const auto jobIndex = frontier[n].first;
-      auto &job = jobs[jobIndex];
+      auto &job = jobs[frontier[n].first];
       if (job.failed)
         continue;
-      const auto &node = nodes[n];
-      if (node.size() < 8 + 2 * offsetSize || std::memcmp(node.data(), "TREE", 4) != 0 ||
-          static_cast<uint8_t>(node[4]) != BTREE_RAW_DATA_NODE) {
+      const auto node = parseNode(nodes[n], job.dimensionality, offsetSize);
+      if (!node) {
         job.failed = true;
         continue;
       }
-      const auto level = static_cast<uint8_t>(node[5]);
-      const auto entries = readLittleEndian(node.data() + 6, 2);
-      const uint64_t keySize = 8 + 8 * static_cast<uint64_t>(job.dimensionality);
-      const uint64_t needed = 8 + 2 * offsetSize + (entries + 1) * keySize + entries * offsetSize;
-      if (needed > node.size()) {
-        job.failed = true;
-        continue;
-      }
-      size_t position = 8 + 2 * offsetSize; // skip the sibling addresses
-      for (uint64_t entry = 0; entry < entries; ++entry) {
-        // key: stored chunk size (4 bytes), filter mask (4 bytes), then the chunk's offset in each dimension
-        const auto storedSize = readLittleEndian(node.data() + position, 4);
-        const auto elementOffset = readLittleEndian(node.data() + position + 8, 8);
-        position += keySize;
-        const auto child = readLittleEndian(node.data() + position, offsetSize);
-        position += offsetSize;
-        if (level > 0) {
-          next.emplace_back(jobIndex, child);
-          continue;
+      const uint64_t numChunks = job.column.chunkOffsets.size();
+      if (node->level == 0) { // the root is a leaf: read it now
+        job.leaves.emplace_back(frontier[n].second, 0, numChunks);
+        job.leafRead.push_back(1);
+        job.failed = !applyLeaf(*node, job.column, 0, numChunks);
+      } else if (node->level == 1) { // the children are leaves: record where they are and what they hold
+        // each key bounds its child from below; the ends are set below from where the next leaf starts, since the
+        // tree's last key is the last chunk itself rather than a bound past it
+        for (size_t i = 0; i < node->children.size(); ++i) {
+          job.leaves.emplace_back(node->children[i], node->keys[i] / job.column.chunkElements, numChunks);
+          job.leafRead.push_back(0);
         }
-        auto &column = job.column;
-        const auto chunk = elementOffset / column.chunkElements;
-        if (elementOffset % column.chunkElements != 0 || chunk >= column.chunkOffsets.size() ||
-            storedSize != column.chunkElements * column.elementSize) {
-          job.failed = true; // not the plain unfiltered layout this reader expects
-          break;
-        }
-        if (column.chunkOffsets[chunk] == std::numeric_limits<uint64_t>::max())
-          ++found[jobIndex];
-        column.chunkOffsets[chunk] = child;
+      } else {
+        for (const auto child : node->children)
+          next.emplace_back(frontier[n].first, child);
       }
     }
     frontier = std::move(next);
   }
-  for (size_t i = 0; i < jobs.size(); ++i) {
-    if (found[i] != jobs[i].column.chunkOffsets.size())
-      jobs[i].failed = true; // unwritten chunks
+
+  // order the leaves by the chunks they hold; each runs up to where the next starts, the last to the end. Reading a
+  // leaf checks that its chunks lie in that range and that none is missing.
+  for (auto &job : jobs) {
+    if (job.failed || job.leaves.empty())
+      continue;
+    std::vector<size_t> order(job.leaves.size());
+    std::iota(order.begin(), order.end(), size_t{0});
+    std::sort(order.begin(), order.end(),
+              [&job](size_t a, size_t b) { return std::get<1>(job.leaves[a]) < std::get<1>(job.leaves[b]); });
+    decltype(job.leaves) leaves;
+    std::vector<char> leafRead;
+    for (const auto i : order) {
+      leaves.push_back(job.leaves[i]);
+      leafRead.push_back(job.leafRead[i]);
+    }
+    const uint64_t numChunks = job.column.chunkOffsets.size();
+    if (std::get<1>(leaves.front()) != 0)
+      job.failed = true;
+    for (size_t i = 0; i < leaves.size() && !job.failed; ++i) {
+      const uint64_t end = i + 1 < leaves.size() ? std::get<1>(leaves[i + 1]) : numChunks;
+      if (end <= std::get<1>(leaves[i]))
+        job.failed = true; // two leaves claim the same first chunk
+      std::get<2>(leaves[i]) = end;
+    }
+    job.leaves = std::move(leaves);
+    job.leafRead = std::move(leafRead);
   }
   return numNodes;
 }
@@ -319,7 +385,7 @@ void ParallelFileReader::work() {
   }
 }
 
-std::future<void> ParallelFileReader::start(std::vector<Task> tasks) {
+std::future<void> ParallelFileReader::start(std::vector<Task> tasks, bool urgent) {
   struct Batch {
     std::promise<void> done;
     std::atomic<size_t> remaining;
@@ -335,8 +401,11 @@ std::future<void> ParallelFileReader::start(std::vector<Task> tasks) {
   batch->remaining = tasks.size();
   {
     std::lock_guard<std::mutex> lock(m_mutex);
+    // urgent tasks go to the front, in reverse so that they still run in the order given
+    if (urgent)
+      std::reverse(tasks.begin(), tasks.end());
     for (auto &task : tasks) {
-      m_queue.emplace_back([batch, task = std::move(task)](std::istream &stream) {
+      auto wrapped = [batch, task = std::move(task)](std::istream &stream) {
         try {
           task(stream);
         } catch (...) {
@@ -350,14 +419,18 @@ std::future<void> ParallelFileReader::start(std::vector<Task> tasks) {
           else
             batch->done.set_value();
         }
-      });
+      };
+      if (urgent)
+        m_queue.emplace_front(std::move(wrapped));
+      else
+        m_queue.emplace_back(std::move(wrapped));
     }
   }
   m_wake.notify_all();
   return future;
 }
 
-void ParallelFileReader::run(std::vector<Task> tasks) { start(std::move(tasks)).get(); }
+void ParallelFileReader::run(std::vector<Task> tasks, bool urgent) { start(std::move(tasks), urgent).get(); }
 
 void readAt(std::istream &stream, uint64_t offset, uint64_t size, char *dest) {
   stream.clear();
@@ -488,18 +561,113 @@ DirectEventReader::DirectEventReader(const std::string &filename, H5::H5File &fi
         roots.push_back(0);
       }
     }
-    m_numIndexNodes = readChunkIndexes(*m_reader, jobs, std::move(roots), superblock);
+    m_sizeOfOffsets = superblock.sizeOfOffsets;
+    m_numIndexNodes = readUpperLevels(*m_reader, jobs, std::move(roots), superblock);
     m_indexSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
   } catch (const Unsupported &error) {
     g_log.information() << filename << ": " << error.what() << "; HDF5 reads every column\n";
     return;
   }
   for (auto &job : jobs) {
-    if (job.failed)
+    if (job.failed) {
       g_log.information() << job.path << ": chunk index not understood; HDF5 reads it\n";
-    else
-      m_columns.emplace(job.path, std::move(job.column));
+      continue;
+    }
+    ColumnIndex index;
+    index.dimensionality = job.dimensionality;
+    index.nodeBytes = job.nodeBytes;
+    for (const auto &[address, first, end] : job.leaves)
+      index.leaves.push_back({address, first, end});
+    index.read = std::move(job.leafRead);
+    m_indexes.emplace(job.path, std::move(index));
+    m_columns.emplace(job.path, std::move(job.column));
   }
+}
+
+void DirectEventReader::locateChunks(const std::vector<ElementRange> &ranges) const {
+  struct Wanted {
+    std::string path;
+    size_t leaf;
+  };
+  std::lock_guard<std::mutex> lock(m_indexMutex);
+  std::vector<Wanted> wanted;
+  std::set<std::pair<std::string, size_t>> seen;
+  for (const auto &range : ranges) {
+    if (range.count == 0)
+      continue;
+    const auto index = m_indexes.find(range.path);
+    const auto column = m_columns.find(range.path);
+    if (index == m_indexes.end() || column == m_columns.end())
+      continue; // not read directly, or empty
+    const auto &leaves = index->second.leaves;
+    const uint64_t firstChunk = range.first / column->second.chunkElements;
+    const uint64_t lastChunk = (range.first + range.count - 1) / column->second.chunkElements;
+    // the first leaf holding firstChunk, then every leaf up to lastChunk
+    auto leaf = std::upper_bound(leaves.begin(), leaves.end(), firstChunk,
+                                 [](uint64_t chunk, const Leaf &candidate) { return chunk < candidate.firstChunk; });
+    if (leaf != leaves.begin())
+      --leaf;
+    for (; leaf != leaves.end() && leaf->firstChunk <= lastChunk; ++leaf) {
+      const auto position = static_cast<size_t>(leaf - leaves.begin());
+      if (!index->second.read[position] && seen.emplace(range.path, position).second)
+        wanted.push_back({range.path, position});
+    }
+  }
+  if (wanted.empty())
+    return;
+
+  const auto start = std::chrono::steady_clock::now();
+  std::vector<std::vector<char>> nodes(wanted.size());
+  std::vector<ParallelFileReader::Task> tasks;
+  tasks.reserve(wanted.size());
+  for (size_t n = 0; n < wanted.size(); ++n) {
+    const auto &index = m_indexes.at(wanted[n].path);
+    const auto address = index.leaves[wanted[n].leaf].address;
+    const auto bytes = index.nodeBytes;
+    tasks.emplace_back(
+        [&nodes, n, address, bytes](std::istream &stream) { nodes[n] = readUpTo(stream, address, bytes); });
+  }
+  // ahead of any queued data reads, which may be waiting on these very chunks
+  m_reader->run(std::move(tasks), true);
+
+  for (size_t n = 0; n < wanted.size(); ++n) {
+    auto &index = m_indexes.at(wanted[n].path);
+    const auto &leaf = index.leaves[wanted[n].leaf];
+    const auto node = parseNode(nodes[n], index.dimensionality, m_sizeOfOffsets);
+    if (!node || !applyLeaf(*node, m_columns.at(wanted[n].path), leaf.firstChunk, leaf.endChunk))
+      throw std::runtime_error("Cannot read the chunk index of " + wanted[n].path + " at offset " +
+                               std::to_string(leaf.address));
+    index.read[wanted[n].leaf] = 1;
+  }
+  m_numLeavesRead += wanted.size();
+  m_leafSeconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+}
+
+uint64_t DirectEventReader::positionHint(const std::string &path, uint64_t element) const {
+  std::lock_guard<std::mutex> lock(m_indexMutex);
+  const auto index = m_indexes.find(path);
+  const auto column = m_columns.find(path);
+  if (index == m_indexes.end() || column == m_columns.end() || column->second.chunkOffsets.empty())
+    return 0;
+  const uint64_t chunk =
+      std::min<uint64_t>(element / column->second.chunkElements, column->second.chunkOffsets.size() - 1);
+  const auto &leaves = index->second.leaves;
+  auto leaf = std::upper_bound(leaves.begin(), leaves.end(), chunk,
+                               [](uint64_t value, const Leaf &candidate) { return value < candidate.firstChunk; });
+  if (leaf != leaves.begin())
+    --leaf;
+  const auto position = static_cast<size_t>(leaf - leaves.begin());
+  return index->second.read[position] ? column->second.chunkOffsets[chunk] : leaf->address;
+}
+
+size_t DirectEventReader::numLeavesRead() const {
+  std::lock_guard<std::mutex> lock(m_indexMutex);
+  return m_numLeavesRead;
+}
+
+double DirectEventReader::leafSeconds() const {
+  std::lock_guard<std::mutex> lock(m_indexMutex);
+  return m_leafSeconds;
 }
 
 const ChunkedColumn *DirectEventReader::column(const std::string &path) const {
@@ -512,6 +680,10 @@ bool DirectEventReader::read(const std::string &path, uint32_t elementSize, cons
   const auto *layout = column(path);
   if (layout == nullptr || layout->elementSize != elementSize)
     return false;
+  std::vector<ElementRange> ranges;
+  for (size_t i = 0; i < offsets.size(); ++i)
+    ranges.push_back({path, offsets[i], slabsizes[i]});
+  locateChunks(ranges);
   std::vector<ParallelFileReader::Task> tasks;
   char *target = dest;
   for (size_t i = 0; i < offsets.size(); ++i) {
