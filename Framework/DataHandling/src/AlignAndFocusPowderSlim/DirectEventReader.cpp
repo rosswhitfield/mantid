@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstring>
 #include <exception>
 #include <filesystem>
@@ -145,9 +146,11 @@ struct IndexJob {
 
 /** Fill in the chunk offsets of every job by reading the B-trees level by level: every node of a level, across all
  * the trees, is fetched at once on the pool. Jobs whose trees cannot be read are marked failed.
+ * @return the number of nodes read
  */
-void readChunkIndexes(ParallelFileReader &reader, std::vector<IndexJob> &jobs, std::vector<uint64_t> roots,
-                      const Superblock &superblock) {
+size_t readChunkIndexes(ParallelFileReader &reader, std::vector<IndexJob> &jobs, std::vector<uint64_t> roots,
+                        const Superblock &superblock) {
+  size_t numNodes = 0;
   const uint64_t offsetSize = superblock.sizeOfOffsets;
   // a node holds at most 2K entries; keys are the chunk size, filter mask and one 8-byte offset per dimension
   std::vector<uint64_t> nodeBytes(jobs.size());
@@ -172,6 +175,7 @@ void readChunkIndexes(ParallelFileReader &reader, std::vector<IndexJob> &jobs, s
       });
     }
     reader.run(std::move(tasks));
+    numNodes += frontier.size();
 
     std::vector<std::pair<size_t, uint64_t>> next;
     for (size_t n = 0; n < frontier.size(); ++n) {
@@ -223,6 +227,7 @@ void readChunkIndexes(ParallelFileReader &reader, std::vector<IndexJob> &jobs, s
     if (found[i] != jobs[i].column.chunkOffsets.size())
       jobs[i].failed = true; // unwritten chunks
   }
+  return numNodes;
 }
 
 uint64_t fileSystemBlockSize(const std::string &filename) {
@@ -468,6 +473,7 @@ DirectEventReader::DirectEventReader(const std::string &filename, H5::H5File &fi
   if (jobs.empty())
     return;
 
+  const auto start = std::chrono::steady_clock::now();
   try {
     std::ifstream stream(filename, std::ios::binary);
     const auto superblock = readSuperblock(stream);
@@ -482,7 +488,8 @@ DirectEventReader::DirectEventReader(const std::string &filename, H5::H5File &fi
         roots.push_back(0);
       }
     }
-    readChunkIndexes(*m_reader, jobs, std::move(roots), superblock);
+    m_numIndexNodes = readChunkIndexes(*m_reader, jobs, std::move(roots), superblock);
+    m_indexSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
   } catch (const Unsupported &error) {
     g_log.information() << filename << ": " << error.what() << "; HDF5 reads every column\n";
     return;

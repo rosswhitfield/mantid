@@ -127,6 +127,9 @@ public:
   /// Number of columns that will be read directly, out of the number looked at.
   size_t numDirectColumns() const { return m_columns.size(); }
   size_t numColumnsExamined() const { return m_numExamined; }
+  /// Chunk-index nodes read, and the seconds it took, while locating the chunks
+  size_t numIndexNodes() const { return m_numIndexNodes; }
+  double indexSeconds() const { return m_indexSeconds; }
 
   /** Read the elements of each slab of the column at @p path consecutively into @p dest.
    *
@@ -143,6 +146,8 @@ public:
 private:
   std::map<std::string, ChunkedColumn> m_columns;
   size_t m_numExamined{0};
+  size_t m_numIndexNodes{0};
+  double m_indexSeconds{0.};
   std::unique_ptr<ParallelFileReader> m_reader;
   uint64_t m_blockSize;
 };

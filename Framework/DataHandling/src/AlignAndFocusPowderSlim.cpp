@@ -46,9 +46,11 @@
 
 #include <H5Cpp.h>
 #include <cctype>
+#include <iomanip>
 #include <numbers>
 #include <ranges>
 #include <regex>
+#include <sstream>
 #include <vector>
 
 namespace Mantid::DataHandling::AlignAndFocusPowderSlim {
@@ -341,6 +343,18 @@ std::map<std::string, std::string> AlignAndFocusPowderSlim::validateInputs() {
 /** Execute the algorithm.
  */
 void AlignAndFocusPowderSlim::exec() {
+  // where the time goes, reported in one line at the end
+  Kernel::Timer timer;
+  double setupSeconds{0.}, indexSeconds{0.}, eventSeconds{0.};
+  std::string eventDetail;
+  auto reportTiming = [&](const double finishSeconds) {
+    std::ostringstream report;
+    report << std::fixed << std::setprecision(2) << "Timing: setup " << setupSeconds << " s, ";
+    if (indexSeconds > 0.)
+      report << "chunk index " << indexSeconds << " s, ";
+    report << "events " << eventSeconds << " s" << eventDetail << ", finishing " << finishSeconds << " s";
+    g_log.information() << report.str() << "\n";
+  };
 
   const std::string filename = getPropertyValue(PropertyNames::FILENAME);
   const Nexus::NexusDescriptor descriptor(filename);
@@ -504,13 +518,18 @@ void AlignAndFocusPowderSlim::exec() {
   }
   m_pulse_times = std::make_shared<std::vector<Mantid::Types::Core::DateAndTime>>(frequency_log->timesAsVector());
 
+  setupSeconds = timer.elapsed();
+
   // one direct reader for every loader: it locates the chunks of every bank's event columns up front
   const std::string readMode = getProperty(PropertyNames::EVENT_READ_MODE);
   std::shared_ptr<DirectEventReader> directReader;
   if (readMode != READ_HDF5) {
     directReader = std::make_shared<DirectEventReader>(filename, h5file, bankEntryNames);
     g_log.information() << "Reading " << directReader->numDirectColumns() << " of "
-                        << directReader->numColumnsExamined() << " event columns directly\n";
+                        << directReader->numColumnsExamined() << " event columns directly; located their chunks from "
+                        << directReader->numIndexNodes() << " index nodes in " << std::fixed << std::setprecision(2)
+                        << directReader->indexSeconds() << " s\n";
+    indexSeconds = timer.elapsed();
   }
 
   if (timeSplitter.empty()) {
@@ -527,6 +546,11 @@ void AlignAndFocusPowderSlim::exec() {
                                 static_cast<size_t>(DISK_CHUNK), static_cast<size_t>(GRAINSIZE_EVENTS));
       API::Progress progress(this, .17, .9, std::max<size_t>(task.numWaves(), 1));
       task.run(progress);
+      std::ostringstream detail;
+      detail << std::fixed << std::setprecision(2) << " (file order: waiting for reads "
+             << task.timing().waitingForReads << " s, histogramming " << task.timing().histogramming
+             << " s, preparing reads " << task.timing().preparingReads << " s)";
+      eventDetail = detail.str();
     } else {
       if (readMode == READ_DIRECT_FILE_ORDER)
         g_log.information() << "Not every bank can be read directly; reading bank by bank\n";
@@ -541,6 +565,8 @@ void AlignAndFocusPowderSlim::exec() {
       }
     }
 
+    eventSeconds = timer.elapsed();
+
     // close the file so child algorithms can do their thing
     h5file.close();
 
@@ -552,6 +578,7 @@ void AlignAndFocusPowderSlim::exec() {
     wksp->mutableRun().removeDataOutsideTimeROI();
 
     setProperty(PropertyNames::OUTPUT_WKSP, std::move(wksp));
+    reportTiming(timer.elapsed());
   } else {
     std::string ws_basename = this->getPropertyValue(PropertyNames::OUTPUT_WKSP);
     std::vector<std::string> wsNames;
@@ -651,6 +678,8 @@ void AlignAndFocusPowderSlim::exec() {
           });
     }
 
+    eventSeconds = timer.elapsed();
+
     // close the file so child algorithms can do their thing
     h5file.close();
 
@@ -686,6 +715,7 @@ void AlignAndFocusPowderSlim::exec() {
     API::Workspace_sptr outputWorkspace = AnalysisDataService::Instance().retrieveWS<API::Workspace>(ws_basename);
 
     setProperty(PropertyNames::OUTPUT_WKSP, outputWorkspace);
+    reportTiming(timer.elapsed());
   }
 }
 
