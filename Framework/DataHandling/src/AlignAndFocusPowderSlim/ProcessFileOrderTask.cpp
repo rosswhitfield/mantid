@@ -11,6 +11,7 @@
 #include "MantidNexus/H5Util.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
@@ -25,6 +26,10 @@ constexpr uint64_t WAVE_BYTES = 256 * 1024 * 1024;
 /// Largest single read, which is also the size of each reading thread's staging buffer
 constexpr uint64_t MAX_SPAN = 8 * 1024 * 1024;
 constexpr uint64_t EVENT_BYTES = sizeof(uint32_t) + sizeof(float);
+
+double secondsSince(std::chrono::steady_clock::time_point start) {
+  return std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+}
 
 std::string columnPath(const std::string &bank, const std::string &column) { return "/entry/" + bank + "/" + column; }
 } // namespace
@@ -192,14 +197,22 @@ void ProcessFileOrderTask::run(API::Progress &progress) {
     buffer.tof.reset(new float[m_waveCapacity]);
   }
   auto &fileReader = m_reader->fileReader();
+  auto start = std::chrono::steady_clock::now();
   std::future<void> pending = fileReader.start(prepareWave(m_waves.front(), buffers[0]));
+  m_timing.preparingReads += secondsSince(start);
   for (size_t index = 0; index < m_waves.size(); ++index) {
+    start = std::chrono::steady_clock::now();
     pending.get();
+    m_timing.waitingForReads += secondsSince(start);
     // the other buffer is free: the wave that used it was histogrammed in the previous iteration
+    start = std::chrono::steady_clock::now();
     if (index + 1 < m_waves.size())
       pending = fileReader.start(prepareWave(m_waves[index + 1], buffers[(index + 1) % 2]));
+    m_timing.preparingReads += secondsSince(start);
     try {
+      start = std::chrono::steady_clock::now();
       histogramWave(m_waves[index]);
+      m_timing.histogramming += secondsSince(start);
     } catch (...) {
       // the next wave's reads write into the other buffer; let them finish before the buffers go away
       if (pending.valid())

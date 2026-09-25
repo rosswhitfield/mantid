@@ -50,6 +50,15 @@ public:
 
   void run(API::Progress &progress);
 
+  /// Where run() spent its time, in seconds. The reads of one wave overlap the histogramming of the previous one, so
+  /// waiting is the time reading added beyond what histogramming hid.
+  struct Timing {
+    double waitingForReads{0.};
+    double histogramming{0.};
+    double preparingReads{0.};
+  };
+  const Timing &timing() const { return m_timing; }
+
 private:
   struct Batch {
     size_t bank;
@@ -86,6 +95,7 @@ private:
   std::vector<Wave> m_waves;
   /// the most events in any wave
   size_t m_waveCapacity{0};
+  Timing m_timing;
 };
 
 } // namespace Mantid::DataHandling::AlignAndFocusPowderSlim
