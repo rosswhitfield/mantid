@@ -6,12 +6,29 @@
 // SPDX - License - Identifier: GPL - 3.0 +
 
 #include "MantidDataHandling/AlignAndFocusPowderSlim/NexusLoader.h"
+#include "MantidDataHandling/AlignAndFocusPowderSlim/DirectEventReader.h"
 #include "MantidNexus/H5Util.h"
+#include <numeric>
 #include <ranges>
 
 namespace Mantid::DataHandling::AlignAndFocusPowderSlim {
 
+namespace {
+std::string datasetPath(const H5::DataSet &SDS) {
+  const auto length = H5Iget_name(SDS.getId(), nullptr, 0);
+  if (length <= 0)
+    return "";
+  std::string path(static_cast<size_t>(length), '\0');
+  H5Iget_name(SDS.getId(), path.data(), path.size() + 1);
+  return path;
+}
+} // namespace
+
 NexusLoader::~NexusLoader() = default;
+
+void NexusLoader::setDirectReader(std::shared_ptr<const DirectEventReader> reader) {
+  m_direct_reader = std::move(reader);
+}
 
 NexusLoader::NexusLoader(const bool is_time_filtered, const std::vector<PulseROI> &pulse_indices,
                          const std::vector<std::pair<int, PulseROI>> &target_to_pulse_indices)
@@ -31,6 +48,22 @@ void NexusLoader::loadData(H5::DataSet &SDS, std::unique_ptr<std::vector<float>>
 template <typename Type>
 void NexusLoader::loadDataInternal(H5::DataSet &SDS, std::unique_ptr<std::vector<Type>> &data,
                                    const std::vector<size_t> &offsets, const std::vector<size_t> &slabsizes) const {
+  if (m_direct_reader && !offsets.empty()) {
+    // A multi-slab HDF5 read returns the slabs in file order, so the direct read, which keeps the order it is given,
+    // matches it only when the slabs are ascending and disjoint. Anything else stays with HDF5.
+    bool ordered = true;
+    for (size_t i = 1; ordered && i < offsets.size(); ++i)
+      ordered = offsets[i] >= offsets[i - 1] + slabsizes[i - 1];
+    if (ordered) {
+      // reuse the caller's vector, as the HDF5 path does; if the column is not read directly this is harmless,
+      // since the HDF5 path resizes it again
+      data->resize(std::accumulate(slabsizes.cbegin(), slabsizes.cend(), size_t{0}));
+      if (m_direct_reader->read(datasetPath(SDS), static_cast<uint32_t>(sizeof(Type)), offsets, slabsizes,
+                                reinterpret_cast<char *>(data->data())))
+        return;
+    }
+  }
+
   // assumes that data is the same type as the dataset
   H5::DataSpace filespace = SDS.getSpace();
 

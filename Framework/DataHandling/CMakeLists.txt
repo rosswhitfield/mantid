@@ -215,11 +215,13 @@ set(SRC_FILES
     src/UpdateInstrumentFromFile.cpp
     src/XmlHandler.cpp
     src/RotateSampleShape.cpp
+    src/AlignAndFocusPowderSlim/DirectEventReader.cpp
     src/AlignAndFocusPowderSlim/NexusLoader.cpp
     src/AlignAndFocusPowderSlim/ProcessBankTask.cpp
     src/AlignAndFocusPowderSlim/ProcessBankTaskBase.cpp
     src/AlignAndFocusPowderSlim/ProcessBankSplitTask.cpp
     src/AlignAndFocusPowderSlim/ProcessBankSplitFullTimeTask.cpp
+    src/AlignAndFocusPowderSlim/ProcessFileOrderTask.cpp
     src/AlignAndFocusPowderSlim/BankCalibration.cpp
 )
 
@@ -443,11 +445,13 @@ set(INC_FILES
     src/LoadRaw/isisraw2.h
     src/LoadRaw/item_struct.h
     src/LoadRaw/vms_convert.h
+    inc/MantidDataHandling/AlignAndFocusPowderSlim/DirectEventReader.h
     inc/MantidDataHandling/AlignAndFocusPowderSlim/NexusLoader.h
     inc/MantidDataHandling/AlignAndFocusPowderSlim/ProcessBankTask.h
     inc/MantidDataHandling/AlignAndFocusPowderSlim/ProcessBankTaskBase.h
     inc/MantidDataHandling/AlignAndFocusPowderSlim/ProcessBankSplitTask.h
     inc/MantidDataHandling/AlignAndFocusPowderSlim/ProcessBankSplitFullTimeTask.h
+    inc/MantidDataHandling/AlignAndFocusPowderSlim/ProcessFileOrderTask.h
     inc/MantidDataHandling/AlignAndFocusPowderSlim/ProcessEventsTask.h
     inc/MantidDataHandling/AlignAndFocusPowderSlim/BankCalibration.h
     inc/MantidDataHandling/RotateSampleShape.h
@@ -471,6 +475,7 @@ set(TEST_FILES
     DefineGaugeVolumeTest.h
     DeleteTableRowsTest.h
     DetermineChunkingTest.h
+    DirectEventReaderTest.h
     DownloadFileTest.h
     DownloadInstrumentTest.h
     EventWorkspaceCollectionTest.h

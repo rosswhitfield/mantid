@@ -65,6 +65,8 @@ struct TestConfig {
   bool processBankSplitTask = false;
   bool useFullTime = false;
   bool correctToSample = false;
+  std::string eventReadMode = "";
+  int readSizeFromDisk = -1;
   // focus positions
   double l1 = 43.755;
   std::vector<double> l2s = {2.296, 2.296, 2.070, 2.070, 2.070, 2.530};
@@ -184,6 +186,12 @@ public:
     }
     if (configuration.bankNum != -10) {
       TS_ASSERT_THROWS_NOTHING(alg.setProperty(BANK_NUMBER, configuration.bankNum));
+    }
+    if (!configuration.eventReadMode.empty()) {
+      TS_ASSERT_THROWS_NOTHING(alg.setProperty(EVENT_READ_MODE, configuration.eventReadMode));
+    }
+    if (configuration.readSizeFromDisk > 0) {
+      TS_ASSERT_THROWS_NOTHING(alg.setProperty(READ_SIZE_FROM_DISK, configuration.readSizeFromDisk));
     }
     // set focus positions
     TS_ASSERT_THROWS_NOTHING(alg.setProperty(L1, configuration.l1));
@@ -1222,6 +1230,83 @@ public:
     auto matWS = std::dynamic_pointer_cast<MatrixWorkspace>(outputWS);
     TS_ASSERT(matWS);
     TS_ASSERT_EQUALS(matWS->getNumberHistograms(), 2);
+  }
+
+  // ================================== reading events directly instead of through HDF5
+
+  /// Every histogram of the output, whether one workspace or a group of them
+  static std::vector<MatrixWorkspace_sptr> outputWorkspaces(const Workspace_sptr &output) {
+    if (auto group = std::dynamic_pointer_cast<WorkspaceGroup>(output)) {
+      std::vector<MatrixWorkspace_sptr> members;
+      for (size_t i = 0; i < group->size(); ++i)
+        members.push_back(std::dynamic_pointer_cast<MatrixWorkspace>(group->getItem(i)));
+      return members;
+    }
+    return {std::dynamic_pointer_cast<MatrixWorkspace>(output)};
+  }
+
+  /// Run the configuration with every EventReadMode; the output must be identical to reading through HDF5
+  void assert_read_modes_match(TestConfig configuration) {
+    configuration.eventReadMode = "HDF5";
+    const auto reference = outputWorkspaces(run_algorithm(VULCAN_218062, configuration));
+    TS_ASSERT(!reference.empty());
+    for (const std::string mode : {"Direct", "DirectFileOrder"}) {
+      configuration.eventReadMode = mode;
+      const auto output = outputWorkspaces(run_algorithm(VULCAN_218062, configuration));
+      TS_ASSERT_EQUALS(output.size(), reference.size());
+      for (size_t i = 0; i < std::min(output.size(), reference.size()); ++i) {
+        TS_ASSERT_EQUALS(output[i]->getNumberHistograms(), reference[i]->getNumberHistograms());
+        for (size_t spectrum = 0; spectrum < reference[i]->getNumberHistograms(); ++spectrum) {
+          TS_ASSERT_EQUALS(output[i]->x(spectrum).rawData(), reference[i]->x(spectrum).rawData());
+          TS_ASSERT_EQUALS(output[i]->y(spectrum).rawData(), reference[i]->y(spectrum).rawData());
+          TS_ASSERT_EQUALS(output[i]->e(spectrum).rawData(), reference[i]->e(spectrum).rawData());
+        }
+      }
+    }
+  }
+
+  void test_read_modes_match() {
+    TestConfig configuration;
+    configuration.groupingWS = bank_grouping_ws;
+    assert_read_modes_match(configuration);
+  }
+
+  void test_read_modes_match_with_small_reads() {
+    // an odd read size puts batch boundaries inside chunks
+    TestConfig configuration;
+    configuration.groupingWS = bank_grouping_ws;
+    configuration.readSizeFromDisk = 1000003;
+    assert_read_modes_match(configuration);
+  }
+
+  void test_read_modes_match_with_time_filtering() {
+    TestConfig configuration({0.}, {50000.}, {500.}, "Linear", "TOF");
+    configuration.groupingWS = bank_grouping_ws;
+    configuration.timeMin = 200.;
+    configuration.timeMax = 300.;
+    assert_read_modes_match(configuration);
+  }
+
+  void test_read_modes_match_with_bad_pulses_and_one_bank() {
+    TestConfig configuration({0.}, {50000.}, {500.}, "Linear", "TOF");
+    configuration.groupingWS = bank_grouping_ws;
+    configuration.filterBadPulses = true;
+    configuration.bankNum = 3;
+    assert_read_modes_match(configuration);
+  }
+
+  void test_read_modes_match_with_splitters() {
+    TestConfig configuration({0.}, {50000.}, {500.}, "Linear", "TOF");
+    configuration.groupingWS = bank_grouping_ws;
+    configuration.relativeTime = true;
+    configuration.splitterWS = create_splitter_table(configuration.relativeTime);
+    for (const bool processBankSplitTask : {false, true}) {
+      configuration.processBankSplitTask = processBankSplitTask;
+      assert_read_modes_match(configuration);
+    }
+    configuration.processBankSplitTask = false;
+    configuration.useFullTime = true;
+    assert_read_modes_match(configuration);
   }
 
   // ==================================
