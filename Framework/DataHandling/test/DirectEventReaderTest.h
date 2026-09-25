@@ -193,38 +193,38 @@ public:
     }
   }
 
-  void test_index_leaves_are_read_only_when_needed() {
+  void test_index_leaves_are_read_in_the_background() {
     H5::H5File file(m_file.path(), H5F_ACC_RDONLY);
     DirectEventReader reader(m_file.path(), file, m_banks, 4);
-    // the upper levels are read up front; bank1's 2,000 chunks need many leaves, none read yet
-    TS_ASSERT_LESS_THAN(0, reader.numIndexNodes());
-    TS_ASSERT_EQUALS(reader.numLeavesRead(), 0);
-    const std::string path("/entry/bank1_events/event_id");
-    const auto *column = reader.column(path);
-    TS_ASSERT_EQUALS(column->chunkOffsets[0], std::numeric_limits<uint64_t>::max());
+    TS_ASSERT_LESS_THAN(0, reader.numIndexNodes()); // the upper levels, read up front
+    const std::string idPath("/entry/bank1_events/event_id");
+    const std::string tofPath("/entry/bank1_events/event_time_offset");
+    const auto *ids = reader.column(idPath);
+    const auto *tofs = reader.column(tofPath);
 
-    // before a chunk is located, its position hint is the address of the leaf that holds it
-    const auto hint = reader.positionHint(path, 0);
-    TS_ASSERT_LESS_THAN(0, hint);
+    // a hint is available before anything is located: a leaf's address or, once its leaf is read, the chunk's offset
+    TS_ASSERT_LESS_THAN(0, reader.positionHint(idPath, 0));
 
-    // a few elements need one leaf
-    std::vector<uint32_t> ids(7);
-    TS_ASSERT(reader.read(path, 4, {5}, {7}, reinterpret_cast<char *>(ids.data())));
-    TS_ASSERT_EQUALS(reader.numLeavesRead(), 1);
-    TS_ASSERT_EQUALS(ids.front(), detidValue(5));
-    TS_ASSERT_EQUALS(reader.positionHint(path, 0), column->chunkOffsets[0]);
-    // locating them again reads nothing more
-    reader.locateChunks({{path, 5, 7}});
-    TS_ASSERT_EQUALS(reader.numLeavesRead(), 1);
+    // locating waits for the leaves the range needs
+    reader.locateChunks({{idPath, 5, 7}});
+    TS_ASSERT_DIFFERS(ids->chunkOffsets[0], std::numeric_limits<uint64_t>::max());
+    TS_ASSERT_EQUALS(reader.positionHint(idPath, 0), ids->chunkOffsets[0]);
 
-    // the whole column needs every leaf, each read once
-    reader.locateChunks({{path, 0, NUM_EVENTS}});
-    const auto allLeaves = reader.numLeavesRead();
-    TS_ASSERT_LESS_THAN(10, allLeaves);
-    TS_ASSERT(std::none_of(column->chunkOffsets.cbegin(), column->chunkOffsets.cend(),
-                           [](uint64_t offset) { return offset == std::numeric_limits<uint64_t>::max(); }));
-    reader.locateChunks({{path, 0, NUM_EVENTS}});
-    TS_ASSERT_EQUALS(reader.numLeavesRead(), allLeaves);
+    // once every chunk of bank1, the only columns with more than one leaf, is located, every queued leaf is read
+    reader.locateChunks({{idPath, 0, NUM_EVENTS}, {tofPath, 0, NUM_EVENTS}});
+    const auto unset = [](uint64_t offset) { return offset == std::numeric_limits<uint64_t>::max(); };
+    TS_ASSERT(std::none_of(ids->chunkOffsets.cbegin(), ids->chunkOffsets.cend(), unset));
+    TS_ASSERT(std::none_of(tofs->chunkOffsets.cbegin(), tofs->chunkOffsets.cend(), unset));
+    TS_ASSERT_LESS_THAN(10, reader.numLeavesRead());
+    TS_ASSERT_LESS_THAN(0., reader.leafBackgroundSeconds());
+  }
+
+  void test_destroying_the_reader_with_leaves_still_queued() {
+    H5::H5File file(m_file.path(), H5F_ACC_RDONLY);
+    for (int i = 0; i < 5; ++i) {
+      DirectEventReader reader(m_file.path(), file, m_banks, 2); // destroyed before the leaves can all be read
+    }
+    TS_ASSERT(true);
   }
 
   void test_read_declines_what_it_does_not_handle() {

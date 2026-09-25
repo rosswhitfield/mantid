@@ -10,6 +10,7 @@
 #include "MantidDataHandling/DllConfig.h"
 
 #include <H5Cpp.h>
+#include <atomic>
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
@@ -42,10 +43,10 @@ public:
   ParallelFileReader &operator=(const ParallelFileReader &) = delete;
 
   /// Start the tasks, each on a pool thread with that thread's stream. The future is ready when all have finished and
-  /// carries the first exception thrown. Urgent tasks go ahead of everything already queued.
-  std::future<void> start(std::vector<Task> tasks, bool urgent = false);
+  /// carries the first exception thrown.
+  std::future<void> start(std::vector<Task> tasks);
   /// Run the tasks and wait for them, rethrowing the first exception thrown.
-  void run(std::vector<Task> tasks, bool urgent = false);
+  void run(std::vector<Task> tasks);
 
   uint64_t fileSize() const { return m_fileSize; }
   const std::string &filename() const { return m_filename; }
@@ -121,8 +122,10 @@ MANTID_DATAHANDLING_DLL std::vector<SpanRead> planSpans(std::vector<ByteRun> run
  * the data. This class parses the chunk indexes itself and reads the chunks directly on a pool of threads.
  *
  * Only the upper levels of each index are read up front, which gives every leaf node's address and the chunks it
- * covers. The leaves, nearly all of the index, are read when their chunks are first needed (locateChunks), so finding
- * the chunks overlaps reading the events instead of preceding it.
+ * covers. The leaves, nearly all of the index, are then all queued at once, in file order, on a separate pool of
+ * threads, and read in the background while the events are read; locateChunks waits only for the leaves a read needs.
+ * Reading them in small rounds as they were needed was slower still: each round waited for its slowest read behind
+ * the data reads.
  *
  * Only what raw event files contain is handled: chunked, unfiltered, one-dimensional ``event_id`` (uint32) and
  * ``event_time_offset`` (float32) in native byte order, in files with a version 0 or 1 superblock and version 1
@@ -132,6 +135,10 @@ class MANTID_DATAHANDLING_DLL DirectEventReader {
 public:
   DirectEventReader(const std::string &filename, H5::H5File &file, const std::vector<std::string> &bankEntryNames,
                     size_t numThreads = 32);
+  /// Stops reading index leaves that are still queued
+  ~DirectEventReader();
+  DirectEventReader(const DirectEventReader &) = delete;
+  DirectEventReader &operator=(const DirectEventReader &) = delete;
 
   /// The layout of the column at @p path (e.g. "/entry/bank1_events/event_id"), or nullptr if HDF5 must read it.
   /// Only the offsets of chunks passed to locateChunks are filled in.
@@ -140,8 +147,8 @@ public:
   size_t numDirectColumns() const { return m_columns.size(); }
   size_t numColumnsExamined() const { return m_numExamined; }
 
-  /// Fill in the offsets of every chunk holding the given elements, reading any index leaves not yet read in one
-  /// round of reads that go ahead of queued data reads. Safe to call from several threads.
+  /// Wait until the offsets of every chunk holding the given elements are filled in, which happens as the index leaves
+  /// holding them are read in the background. Safe to call from several threads.
   void locateChunks(const std::vector<ElementRange> &ranges) const;
   /// Roughly where the chunk holding @p element sits in the file, before it has been located: the address of the
   /// index leaf covering it, which the data acquisition writes next to the data. For ordering reads.
@@ -150,8 +157,11 @@ public:
   /// Upper index levels read up front: nodes and seconds
   size_t numIndexNodes() const { return m_numIndexNodes; }
   double indexSeconds() const { return m_indexSeconds; }
-  /// Index leaves read on demand so far, and the seconds spent waiting for them
+  /// Index leaves read in the background so far, and the seconds from queuing them to reading the last, or 0 before
+  /// that
   size_t numLeavesRead() const;
+  double leafBackgroundSeconds() const;
+  /// Seconds that locateChunks callers spent waiting for leaves, summed over callers
   double leafSeconds() const;
 
   /** Read the elements of each slab of the column at @p path consecutively into @p dest.
@@ -172,7 +182,7 @@ public:
     uint64_t firstChunk;
     uint64_t endChunk;
   };
-  /// A column's index leaves, in chunk order, and which have been read
+  /// A column's index leaves, in chunk order, and the state of each: 0 queued, 1 read, 2 not understood
   struct ColumnIndex {
     std::vector<Leaf> leaves;
     std::vector<char> read;
@@ -186,14 +196,20 @@ private:
   mutable std::map<std::string, ChunkedColumn> m_columns;
   mutable std::map<std::string, ColumnIndex> m_indexes;
   mutable std::mutex m_indexMutex;
-  mutable size_t m_numLeavesRead{0};
+  mutable std::condition_variable m_leafRead;
+  size_t m_numLeavesRead{0};
+  size_t m_numLeavesQueued{0};
+  double m_leafBackgroundSeconds{0.};
   mutable double m_leafSeconds{0.};
+  std::atomic<bool> m_stopping{false};
   uint32_t m_sizeOfOffsets{8};
   size_t m_numExamined{0};
   size_t m_numIndexNodes{0};
   double m_indexSeconds{0.};
   std::unique_ptr<ParallelFileReader> m_reader;
   uint64_t m_blockSize;
+  /// reads the index leaves; declared last so that it is destroyed, and its threads finished, before what they use
+  std::unique_ptr<ParallelFileReader> m_indexReader;
 };
 
 } // namespace Mantid::DataHandling::AlignAndFocusPowderSlim
