@@ -28,8 +28,8 @@ namespace Mantid::DataHandling::AlignAndFocusPowderSlim {
  * bank, or column by column, asks the file system for blocks that are mostly other columns' data, and on network
  * storage that reads large blocks this multiplies the bytes fetched. Here the events of every bank are cut into
  * batches, the batches are ordered by where they sit in the file and grouped into waves, and each wave is read as
- * block-aligned pieces in file order on a pool of threads, so each block is fetched once. The next wave is read while
- * the current one is histogrammed.
+ * block-aligned pieces in file order on a pool of threads, so each block is fetched once. The reads of the next few
+ * waves are queued while one is histogrammed, so the reading threads never run out of work at the end of a wave.
  *
  * Histogramming is the same as ProcessBankTask's; counts are sums, so the order in which batches arrive does not
  * change the result. Only used without splitters, and only when every bank's columns can be read directly.
@@ -70,8 +70,8 @@ private:
     std::span<uint32_t> detid;
     std::span<float> tof;
   };
-  /// Room for one wave's events. Two are allocated once and alternate, so that one wave is read while the previous
-  /// one is histogrammed; allocating and zero-filling buffers for every wave took as long as the histogramming.
+  /// Room for one wave's events. A few are allocated once and reused in turn, so that later waves are read while one
+  /// is histogrammed; allocating and zero-filling buffers for every wave took as long as the histogramming.
   struct WaveBuffer {
     std::unique_ptr<uint32_t[]> detid;
     std::unique_ptr<float[]> tof;
