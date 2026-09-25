@@ -56,6 +56,8 @@ public:
     double waitingForReads{0.};
     double histogramming{0.};
     double preparingReads{0.};
+    /// part of preparing reads spent reading index leaves to locate the chunks
+    double findingChunks{0.};
   };
   const Timing &timing() const { return m_timing; }
 

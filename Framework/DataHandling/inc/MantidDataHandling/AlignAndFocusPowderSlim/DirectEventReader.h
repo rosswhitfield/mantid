@@ -42,10 +42,10 @@ public:
   ParallelFileReader &operator=(const ParallelFileReader &) = delete;
 
   /// Start the tasks, each on a pool thread with that thread's stream. The future is ready when all have finished and
-  /// carries the first exception thrown.
-  std::future<void> start(std::vector<Task> tasks);
+  /// carries the first exception thrown. Urgent tasks go ahead of everything already queued.
+  std::future<void> start(std::vector<Task> tasks, bool urgent = false);
   /// Run the tasks and wait for them, rethrowing the first exception thrown.
-  void run(std::vector<Task> tasks);
+  void run(std::vector<Task> tasks, bool urgent = false);
 
   uint64_t fileSize() const { return m_fileSize; }
   const std::string &filename() const { return m_filename; }
@@ -70,8 +70,16 @@ struct MANTID_DATAHANDLING_DLL ChunkedColumn {
   uint64_t numElements{0};
   uint64_t chunkElements{0};
   uint32_t elementSize{0};
-  /// File offset of each chunk, in element order.
+  /// File offset of each chunk, in element order. Filled in as the chunks are located: see
+  /// DirectEventReader::locateChunks.
   std::vector<uint64_t> chunkOffsets;
+};
+
+/// Elements [first, first + count) of the column at @p path.
+struct ElementRange {
+  std::string path;
+  uint64_t first;
+  uint64_t count;
 };
 
 /// Bytes [fileOffset, fileOffset + size) of the file belong at @p dest.
@@ -110,8 +118,11 @@ MANTID_DATAHANDLING_DLL std::vector<SpanRead> planSpans(std::vector<ByteRun> run
  * HDF5 serialises every read behind one library-wide lock and keeps one request outstanding, and it finds chunks by
  * walking each dataset's index one small read at a time. In files written by the SNS data acquisition the index
  * nodes are scattered through the whole file, so on network storage that walk alone can take longer than reading
- * the data. This class parses the chunk indexes itself, fetching every node of a tree level at once, and then reads
- * the chunks directly on a pool of threads.
+ * the data. This class parses the chunk indexes itself and reads the chunks directly on a pool of threads.
+ *
+ * Only the upper levels of each index are read up front, which gives every leaf node's address and the chunks it
+ * covers. The leaves, nearly all of the index, are read when their chunks are first needed (locateChunks), so finding
+ * the chunks overlaps reading the events instead of preceding it.
  *
  * Only what raw event files contain is handled: chunked, unfiltered, one-dimensional ``event_id`` (uint32) and
  * ``event_time_offset`` (float32) in native byte order, in files with a version 0 or 1 superblock and version 1
@@ -123,13 +134,25 @@ public:
                     size_t numThreads = 32);
 
   /// The layout of the column at @p path (e.g. "/entry/bank1_events/event_id"), or nullptr if HDF5 must read it.
+  /// Only the offsets of chunks passed to locateChunks are filled in.
   const ChunkedColumn *column(const std::string &path) const;
   /// Number of columns that will be read directly, out of the number looked at.
   size_t numDirectColumns() const { return m_columns.size(); }
   size_t numColumnsExamined() const { return m_numExamined; }
-  /// Chunk-index nodes read, and the seconds it took, while locating the chunks
+
+  /// Fill in the offsets of every chunk holding the given elements, reading any index leaves not yet read in one
+  /// round of reads that go ahead of queued data reads. Safe to call from several threads.
+  void locateChunks(const std::vector<ElementRange> &ranges) const;
+  /// Roughly where the chunk holding @p element sits in the file, before it has been located: the address of the
+  /// index leaf covering it, which the data acquisition writes next to the data. For ordering reads.
+  uint64_t positionHint(const std::string &path, uint64_t element) const;
+
+  /// Upper index levels read up front: nodes and seconds
   size_t numIndexNodes() const { return m_numIndexNodes; }
   double indexSeconds() const { return m_indexSeconds; }
+  /// Index leaves read on demand so far, and the seconds spent waiting for them
+  size_t numLeavesRead() const;
+  double leafSeconds() const;
 
   /** Read the elements of each slab of the column at @p path consecutively into @p dest.
    *
@@ -143,8 +166,29 @@ public:
   /// The file system's block size, the unit it reads in.
   uint64_t blockSize() const { return m_blockSize; }
 
+  /// An index leaf node: its address, and the chunks [firstChunk, endChunk) it holds
+  struct Leaf {
+    uint64_t address;
+    uint64_t firstChunk;
+    uint64_t endChunk;
+  };
+  /// A column's index leaves, in chunk order, and which have been read
+  struct ColumnIndex {
+    std::vector<Leaf> leaves;
+    std::vector<char> read;
+    uint32_t dimensionality{0};
+    uint64_t nodeBytes{0};
+  };
+
 private:
-  std::map<std::string, ChunkedColumn> m_columns;
+  /// chunk offsets and which leaves are read are filled in by locateChunks, which is const so that shared readers can
+  /// call it; m_indexMutex guards them
+  mutable std::map<std::string, ChunkedColumn> m_columns;
+  mutable std::map<std::string, ColumnIndex> m_indexes;
+  mutable std::mutex m_indexMutex;
+  mutable size_t m_numLeavesRead{0};
+  mutable double m_leafSeconds{0.};
+  uint32_t m_sizeOfOffsets{8};
   size_t m_numExamined{0};
   size_t m_numIndexNodes{0};
   double m_indexSeconds{0.};
