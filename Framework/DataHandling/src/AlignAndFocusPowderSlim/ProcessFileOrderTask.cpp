@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <deque>
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
 
@@ -21,8 +22,11 @@ namespace Mantid::DataHandling::AlignAndFocusPowderSlim {
 namespace {
 auto g_log = Kernel::Logger("ProcessFileOrderTask");
 
-/// Events read and held per wave, in bytes; two waves are in memory at once, one read while the other is histogrammed
+/// Events read and held per wave, in bytes
 constexpr uint64_t WAVE_BYTES = 256 * 1024 * 1024;
+/// Wave buffers: one wave is histogrammed while the reads of the next NUM_BUFFERS - 1 are queued, so the reading
+/// threads always have work at the end of a wave instead of idling until the next one is started
+constexpr size_t NUM_BUFFERS = 4;
 /// Largest single read, which is also the size of each reading thread's staging buffer
 constexpr uint64_t MAX_SPAN = 8 * 1024 * 1024;
 constexpr uint64_t EVENT_BYTES = sizeof(uint32_t) + sizeof(float);
@@ -191,35 +195,44 @@ void ProcessFileOrderTask::run(API::Progress &progress) {
   if (m_waves.empty())
     return;
   // allocated without initialising: every element is written by a read before it is used
-  WaveBuffer buffers[2];
+  const size_t numBuffers = std::min(NUM_BUFFERS, m_waves.size());
+  std::vector<WaveBuffer> buffers(numBuffers);
   for (auto &buffer : buffers) {
     buffer.detid.reset(new uint32_t[m_waveCapacity]);
     buffer.tof.reset(new float[m_waveCapacity]);
   }
   auto &fileReader = m_reader->fileReader();
-  auto start = std::chrono::steady_clock::now();
-  std::future<void> pending = fileReader.start(prepareWave(m_waves.front(), buffers[0]));
-  m_timing.preparingReads += secondsSince(start);
-  for (size_t index = 0; index < m_waves.size(); ++index) {
-    start = std::chrono::steady_clock::now();
-    pending.get();
-    m_timing.waitingForReads += secondsSince(start);
-    // the other buffer is free: the wave that used it was histogrammed in the previous iteration
-    start = std::chrono::steady_clock::now();
-    if (index + 1 < m_waves.size())
-      pending = fileReader.start(prepareWave(m_waves[index + 1], buffers[(index + 1) % 2]));
-    m_timing.preparingReads += secondsSince(start);
-    try {
+  std::deque<std::future<void>> pending; // the reads of waves [index, next), in order
+  size_t next = 0;
+  try {
+    for (size_t index = 0; index < m_waves.size(); ++index) {
+      // Queue waves while a buffer is free. Wave w uses buffer w % numBuffers, last used by wave w - numBuffers, which
+      // has been histogrammed once it is below index.
+      auto start = std::chrono::steady_clock::now();
+      while (next < m_waves.size() && next < index + numBuffers) {
+        pending.push_back(fileReader.start(prepareWave(m_waves[next], buffers[next % numBuffers])));
+        ++next;
+      }
+      m_timing.preparingReads += secondsSince(start);
+
+      start = std::chrono::steady_clock::now();
+      auto current = std::move(pending.front());
+      pending.pop_front();
+      current.get();
+      m_timing.waitingForReads += secondsSince(start);
+
       start = std::chrono::steady_clock::now();
       histogramWave(m_waves[index]);
       m_timing.histogramming += secondsSince(start);
-    } catch (...) {
-      // the next wave's reads write into the other buffer; let them finish before the buffers go away
-      if (pending.valid())
-        pending.wait();
-      throw;
+      progress.report();
     }
-    progress.report();
+  } catch (...) {
+    // queued reads write into the buffers; let them finish before the buffers go away
+    for (auto &reads : pending) {
+      if (reads.valid())
+        reads.wait();
+    }
+    throw;
   }
 }
 
