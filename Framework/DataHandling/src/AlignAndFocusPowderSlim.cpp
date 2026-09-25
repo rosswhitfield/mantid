@@ -355,8 +355,9 @@ void AlignAndFocusPowderSlim::exec() {
       report << "chunk index " << indexSeconds << " s, ";
     report << "events " << eventSeconds << " s" << eventDetail << ", finishing " << finishSeconds << " s";
     if (directReader)
-      report << "; index leaves read while reading events: " << directReader->numLeavesRead() << " in "
-             << directReader->leafSeconds() << " s";
+      report << "; index leaves read in the background: " << directReader->numLeavesRead() << " in "
+             << directReader->leafBackgroundSeconds() << " s, reads waited " << directReader->leafSeconds()
+             << " s for them";
     g_log.information() << report.str() << "\n";
   };
 

@@ -385,7 +385,7 @@ void ParallelFileReader::work() {
   }
 }
 
-std::future<void> ParallelFileReader::start(std::vector<Task> tasks, bool urgent) {
+std::future<void> ParallelFileReader::start(std::vector<Task> tasks) {
   struct Batch {
     std::promise<void> done;
     std::atomic<size_t> remaining;
@@ -401,11 +401,8 @@ std::future<void> ParallelFileReader::start(std::vector<Task> tasks, bool urgent
   batch->remaining = tasks.size();
   {
     std::lock_guard<std::mutex> lock(m_mutex);
-    // urgent tasks go to the front, in reverse so that they still run in the order given
-    if (urgent)
-      std::reverse(tasks.begin(), tasks.end());
     for (auto &task : tasks) {
-      auto wrapped = [batch, task = std::move(task)](std::istream &stream) {
+      m_queue.emplace_back([batch, task = std::move(task)](std::istream &stream) {
         try {
           task(stream);
         } catch (...) {
@@ -419,18 +416,14 @@ std::future<void> ParallelFileReader::start(std::vector<Task> tasks, bool urgent
           else
             batch->done.set_value();
         }
-      };
-      if (urgent)
-        m_queue.emplace_front(std::move(wrapped));
-      else
-        m_queue.emplace_back(std::move(wrapped));
+      });
     }
   }
   m_wake.notify_all();
   return future;
 }
 
-void ParallelFileReader::run(std::vector<Task> tasks, bool urgent) { start(std::move(tasks), urgent).get(); }
+void ParallelFileReader::run(std::vector<Task> tasks) { start(std::move(tasks)).get(); }
 
 void readAt(std::istream &stream, uint64_t offset, uint64_t size, char *dest) {
   stream.clear();
@@ -582,16 +575,59 @@ DirectEventReader::DirectEventReader(const std::string &filename, H5::H5File &fi
     m_indexes.emplace(job.path, std::move(index));
     m_columns.emplace(job.path, std::move(job.column));
   }
+
+  // Queue every leaf still to read, in file order so that the leaves of the first data to be read come first, on a
+  // pool of its own so that leaf reads and data reads never wait behind each other.
+  struct Pending {
+    uint64_t address;
+    ColumnIndex *index;
+    ChunkedColumn *column;
+    size_t leaf;
+  };
+  std::vector<Pending> pending;
+  for (auto &[path, index] : m_indexes) {
+    for (size_t leaf = 0; leaf < index.leaves.size(); ++leaf)
+      if (!index.read[leaf])
+        pending.push_back({index.leaves[leaf].address, &index, &m_columns.at(path), leaf});
+  }
+  if (pending.empty())
+    return;
+  std::sort(pending.begin(), pending.end(),
+            [](const Pending &left, const Pending &right) { return left.address < right.address; });
+  m_numLeavesQueued = pending.size();
+  m_indexReader = std::make_unique<ParallelFileReader>(filename, numThreads);
+  const auto queued = std::chrono::steady_clock::now();
+  std::vector<ParallelFileReader::Task> tasks;
+  tasks.reserve(pending.size());
+  for (const auto &item : pending) {
+    tasks.emplace_back([this, item, queued](std::istream &stream) {
+      if (m_stopping)
+        return;
+      const auto &leaf = item.index->leaves[item.leaf];
+      const auto data = readUpTo(stream, leaf.address, item.index->nodeBytes);
+      const auto node = parseNode(data, item.index->dimensionality, m_sizeOfOffsets);
+      {
+        std::lock_guard<std::mutex> lock(m_indexMutex);
+        const bool understood = node && applyLeaf(*node, *item.column, leaf.firstChunk, leaf.endChunk);
+        item.index->read[item.leaf] = understood ? 1 : 2;
+        if (++m_numLeavesRead == m_numLeavesQueued)
+          m_leafBackgroundSeconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - queued).count();
+      }
+      m_leafRead.notify_all();
+    });
+  }
+  m_indexReader->start(std::move(tasks));
+}
+
+DirectEventReader::~DirectEventReader() {
+  m_stopping = true;
+  m_indexReader.reset(); // the queued leaf reads now return at once
 }
 
 void DirectEventReader::locateChunks(const std::vector<ElementRange> &ranges) const {
-  struct Wanted {
-    std::string path;
-    size_t leaf;
-  };
-  std::lock_guard<std::mutex> lock(m_indexMutex);
-  std::vector<Wanted> wanted;
-  std::set<std::pair<std::string, size_t>> seen;
+  // the leaves the ranges need, as (column index, leaf)
+  std::vector<std::pair<const ColumnIndex *, size_t>> wanted;
+  std::vector<std::string> wantedPaths;
   for (const auto &range : ranges) {
     if (range.count == 0)
       continue;
@@ -602,45 +638,34 @@ void DirectEventReader::locateChunks(const std::vector<ElementRange> &ranges) co
     const auto &leaves = index->second.leaves;
     const uint64_t firstChunk = range.first / column->second.chunkElements;
     const uint64_t lastChunk = (range.first + range.count - 1) / column->second.chunkElements;
-    // the first leaf holding firstChunk, then every leaf up to lastChunk
+    // the leaf holding firstChunk, then every leaf up to lastChunk
     auto leaf = std::upper_bound(leaves.begin(), leaves.end(), firstChunk,
                                  [](uint64_t chunk, const Leaf &candidate) { return chunk < candidate.firstChunk; });
     if (leaf != leaves.begin())
       --leaf;
     for (; leaf != leaves.end() && leaf->firstChunk <= lastChunk; ++leaf) {
-      const auto position = static_cast<size_t>(leaf - leaves.begin());
-      if (!index->second.read[position] && seen.emplace(range.path, position).second)
-        wanted.push_back({range.path, position});
+      wanted.emplace_back(&index->second, static_cast<size_t>(leaf - leaves.begin()));
+      wantedPaths.push_back(range.path);
     }
   }
   if (wanted.empty())
     return;
 
   const auto start = std::chrono::steady_clock::now();
-  std::vector<std::vector<char>> nodes(wanted.size());
-  std::vector<ParallelFileReader::Task> tasks;
-  tasks.reserve(wanted.size());
+  std::unique_lock<std::mutex> lock(m_indexMutex);
+  bool waited = false;
   for (size_t n = 0; n < wanted.size(); ++n) {
-    const auto &index = m_indexes.at(wanted[n].path);
-    const auto address = index.leaves[wanted[n].leaf].address;
-    const auto bytes = index.nodeBytes;
-    tasks.emplace_back(
-        [&nodes, n, address, bytes](std::istream &stream) { nodes[n] = readUpTo(stream, address, bytes); });
+    const auto &[index, leaf] = wanted[n];
+    if (!index->read[leaf]) {
+      waited = true;
+      m_leafRead.wait(lock, [index = index, leaf = leaf] { return index->read[leaf] != 0; });
+    }
+    if (index->read[leaf] == 2)
+      throw std::runtime_error("Cannot read the chunk index of " + wantedPaths[n] + " at offset " +
+                               std::to_string(index->leaves[leaf].address));
   }
-  // ahead of any queued data reads, which may be waiting on these very chunks
-  m_reader->run(std::move(tasks), true);
-
-  for (size_t n = 0; n < wanted.size(); ++n) {
-    auto &index = m_indexes.at(wanted[n].path);
-    const auto &leaf = index.leaves[wanted[n].leaf];
-    const auto node = parseNode(nodes[n], index.dimensionality, m_sizeOfOffsets);
-    if (!node || !applyLeaf(*node, m_columns.at(wanted[n].path), leaf.firstChunk, leaf.endChunk))
-      throw std::runtime_error("Cannot read the chunk index of " + wanted[n].path + " at offset " +
-                               std::to_string(leaf.address));
-    index.read[wanted[n].leaf] = 1;
-  }
-  m_numLeavesRead += wanted.size();
-  m_leafSeconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+  if (waited)
+    m_leafSeconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
 }
 
 uint64_t DirectEventReader::positionHint(const std::string &path, uint64_t element) const {
@@ -657,12 +682,17 @@ uint64_t DirectEventReader::positionHint(const std::string &path, uint64_t eleme
   if (leaf != leaves.begin())
     --leaf;
   const auto position = static_cast<size_t>(leaf - leaves.begin());
-  return index->second.read[position] ? column->second.chunkOffsets[chunk] : leaf->address;
+  return index->second.read[position] == 1 ? column->second.chunkOffsets[chunk] : leaf->address;
 }
 
 size_t DirectEventReader::numLeavesRead() const {
   std::lock_guard<std::mutex> lock(m_indexMutex);
   return m_numLeavesRead;
+}
+
+double DirectEventReader::leafBackgroundSeconds() const {
+  std::lock_guard<std::mutex> lock(m_indexMutex);
+  return m_leafBackgroundSeconds;
 }
 
 double DirectEventReader::leafSeconds() const {
