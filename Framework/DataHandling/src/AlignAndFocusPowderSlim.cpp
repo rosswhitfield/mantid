@@ -13,9 +13,11 @@
 #include "MantidAPI/Run.h"
 #include "MantidAPI/Sample.h"
 #include "MantidDataHandling/AlignAndFocusPowderSlim/BankCalibration.h"
+#include "MantidDataHandling/AlignAndFocusPowderSlim/DirectEventReader.h"
 #include "MantidDataHandling/AlignAndFocusPowderSlim/ProcessBankSplitFullTimeTask.h"
 #include "MantidDataHandling/AlignAndFocusPowderSlim/ProcessBankSplitTask.h"
 #include "MantidDataHandling/AlignAndFocusPowderSlim/ProcessBankTask.h"
+#include "MantidDataHandling/AlignAndFocusPowderSlim/ProcessFileOrderTask.h"
 #include "MantidDataHandling/LoadEventNexus.h"
 #include "MantidDataObjects/EventList.h"
 #include "MantidDataObjects/GroupingWorkspace.h"
@@ -32,6 +34,7 @@
 #include "MantidKernel/CompositeValidator.h"
 #include "MantidKernel/EnumeratedString.h"
 #include "MantidKernel/EnumeratedStringProperty.h"
+#include "MantidKernel/ListValidator.h"
 #include "MantidKernel/MandatoryValidator.h"
 #include "MantidKernel/Strings.h"
 #include "MantidKernel/TimeSeriesProperty.h"
@@ -83,6 +86,10 @@ enum class BinUnit { DSPACE, TOF, Q, enum_count };
 typedef Mantid::Kernel::EnumeratedString<BinUnit, &unitNames> BINUNIT;
 
 const std::string ENTRY_TOP_LEVEL("entry");
+
+const std::string READ_HDF5("HDF5");
+const std::string READ_DIRECT("Direct");
+const std::string READ_DIRECT_FILE_ORDER("DirectFileOrder");
 
 // TODO refactor this to use the actual grouping
 double getFocussedPostion(const detid_t detid, const std::vector<double> &difc_focus,
@@ -229,6 +236,16 @@ void AlignAndFocusPowderSlim::init() {
       std::make_unique<PropertyWithValue<int>>(PropertyNames::EVENTS_PER_THREAD, 1000, positiveIntValidator),
       "Number of events to read in a single thread. Higher means less threads are created.");
   setPropertyGroup(PropertyNames::EVENTS_PER_THREAD, CHUNKING_PARAM_GROUP);
+  declareProperty(
+      PropertyNames::EVENT_READ_MODE, READ_HDF5,
+      std::make_shared<Kernel::StringListValidator>(
+          std::vector<std::string>{READ_HDF5, READ_DIRECT, READ_DIRECT_FILE_ORDER}),
+      "How the events are read. HDF5 reads them through the HDF5 library. Direct reads the chunks of "
+      "unfiltered event columns straight from the file on many threads, bypassing the library's lock. "
+      "DirectFileOrder also reads all banks together in one pass in file order, which suits network file "
+      "systems that read in large blocks; with splitters it behaves like Direct. Columns that cannot be read "
+      "directly (compressed, or of another type or layout) are read through HDF5 in every mode.");
+  setPropertyGroup(PropertyNames::EVENT_READ_MODE, CHUNKING_PARAM_GROUP);
 
   // load single bank
   declareProperty(
@@ -487,21 +504,41 @@ void AlignAndFocusPowderSlim::exec() {
   }
   m_pulse_times = std::make_shared<std::vector<Mantid::Types::Core::DateAndTime>>(frequency_log->timesAsVector());
 
+  // one direct reader for every loader: it locates the chunks of every bank's event columns up front
+  const std::string readMode = getProperty(PropertyNames::EVENT_READ_MODE);
+  std::shared_ptr<DirectEventReader> directReader;
+  if (readMode != READ_HDF5) {
+    directReader = std::make_shared<DirectEventReader>(filename, h5file, bankEntryNames);
+    g_log.information() << "Reading " << directReader->numDirectColumns() << " of "
+                        << directReader->numColumnsExamined() << " event columns directly\n";
+  }
+
   if (timeSplitter.empty()) {
     // create the nexus loader for handling combined calls to hdf5
 
     SpectraProcessingData processingData = initializeSpectraProcessingData(wksp);
     const auto pulse_indices = this->determinePulseIndices(filterROI);
     auto loader = std::make_shared<NexusLoader>(is_time_filtered, pulse_indices);
+    if (directReader)
+      loader->setDirectReader(directReader);
 
-    auto progress = std::make_shared<API::Progress>(this, .17, .9, num_banks_to_read);
-    ProcessBankTask task(bankEntryNames, h5file, loader, processingData, calibFactory, static_cast<size_t>(DISK_CHUNK),
-                         static_cast<size_t>(GRAINSIZE_EVENTS), progress);
-    // generate threads only if appropriate
-    if (num_banks_to_read > 1) {
-      tbb::parallel_for(tbb::blocked_range<size_t>(0, num_banks_to_read), task);
+    if (readMode == READ_DIRECT_FILE_ORDER && ProcessFileOrderTask::canProcess(*directReader, bankEntryNames)) {
+      ProcessFileOrderTask task(bankEntryNames, h5file, loader, directReader, processingData, calibFactory,
+                                static_cast<size_t>(DISK_CHUNK), static_cast<size_t>(GRAINSIZE_EVENTS));
+      API::Progress progress(this, .17, .9, std::max<size_t>(task.numWaves(), 1));
+      task.run(progress);
     } else {
-      task(tbb::blocked_range<size_t>(0, 1));
+      if (readMode == READ_DIRECT_FILE_ORDER)
+        g_log.information() << "Not every bank can be read directly; reading bank by bank\n";
+      auto progress = std::make_shared<API::Progress>(this, .17, .9, num_banks_to_read);
+      ProcessBankTask task(bankEntryNames, h5file, loader, processingData, calibFactory,
+                           static_cast<size_t>(DISK_CHUNK), static_cast<size_t>(GRAINSIZE_EVENTS), progress);
+      // generate threads only if appropriate
+      if (num_banks_to_read > 1) {
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, num_banks_to_read), task);
+      } else {
+        task(tbb::blocked_range<size_t>(0, 1));
+      }
     }
 
     // close the file so child algorithms can do their thing
@@ -543,6 +580,8 @@ void AlignAndFocusPowderSlim::exec() {
       // create the nexus loader for handling combined calls to hdf5
       const auto pulse_indices = this->determinePulseIndices(combined_time_roi);
       auto loader = std::make_shared<NexusLoader>(is_time_filtered, pulse_indices);
+      if (directReader)
+        loader->setDirectReader(directReader);
 
       const auto &splitterMap = timeSplitter.getSplittersMap();
 
@@ -564,6 +603,8 @@ void AlignAndFocusPowderSlim::exec() {
       // create the nexus loader for handling combined calls to hdf5
       std::vector<PulseROI> pulse_indices; // intentionally empty to get around loader needing const reference
       auto loader = std::make_shared<NexusLoader>(is_time_filtered, pulse_indices, target_to_pulse_indices);
+      if (directReader)
+        loader->setDirectReader(directReader);
 
       ProcessBankSplitTask task(bankEntryNames, h5file, loader, workspaceIndices, processingDatas, calibFactory,
                                 static_cast<size_t>(DISK_CHUNK), static_cast<size_t>(GRAINSIZE_EVENTS), progress);
@@ -595,6 +636,8 @@ void AlignAndFocusPowderSlim::exec() {
 
               const auto pulse_indices = this->determinePulseIndices(target_roi);
               auto loader = std::make_shared<NexusLoader>(is_time_filtered, pulse_indices);
+              if (directReader)
+                loader->setDirectReader(directReader);
 
               ProcessBankTask task(bankEntryNames, h5file, loader, processingDatas[target_index], calibFactory,
                                    static_cast<size_t>(DISK_CHUNK), static_cast<size_t>(GRAINSIZE_EVENTS), progress);

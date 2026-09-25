@@ -33,6 +33,26 @@ Child algorithms used are
 - :ref:`algm-LoadNexusLogs`
 - :ref:`algm-ConvertUnits`
 
+Reading events
+##############
+
+``EventReadMode`` chooses how the detector IDs and times-of-flight are read. It does not change the result: every mode
+gives identical output.
+
+- ``HDF5`` (default) reads the events through the HDF5 library. The library lets only one read run at a time and keeps
+  a single request outstanding, which limits the speed on network file systems.
+- ``Direct`` reads the stored chunks of each event column straight from the file on a pool of threads, bypassing the
+  library. It first finds where the chunks are by parsing each column's chunk index itself, fetching many index nodes
+  at once; in raw SNS files the index is spread through the whole file, so walking it through the library can take
+  longer than reading the events.
+- ``DirectFileOrder`` also reads the events of all banks together in one pass through the file, in file order and in
+  pieces aligned to the file system's blocks. The data acquisition writes all banks' events interleaved, so reading bank
+  by bank on a file system that reads large blocks (such as GPFS) fetches many blocks more than once. With a
+  ``SplitterWorkspace`` it reads like ``Direct``.
+
+Only uncompressed, chunked event columns of the expected types are read directly, which is what raw SNS event files
+contain. Any other column is read through HDF5 in every mode.
+
 Usage
 -----
 

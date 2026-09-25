@@ -16,6 +16,8 @@
 
 namespace Mantid::DataHandling::AlignAndFocusPowderSlim {
 
+class DirectEventReader;
+
 namespace NxsFieldNames {
 const std::string TIME_OF_FLIGHT("event_time_offset"); // float32 in ORNL nexus files
 const std::string DETID("event_id");                   // uint32 in ORNL nexus files
@@ -41,6 +43,9 @@ public:
   std::stack<std::pair<int, EventROI>> getEventIndexSplitRanges(H5::Group &event_group,
                                                                 const uint64_t number_events) const;
 
+  /// Read event columns that the reader handles straight from the file instead of through HDF5
+  void setDirectReader(std::shared_ptr<const DirectEventReader> reader);
+
 private:
   template <typename Type>
   void loadDataInternal(H5::DataSet &SDS, std::unique_ptr<std::vector<Type>> &data, const std::vector<size_t> &offsets,
@@ -48,6 +53,7 @@ private:
   const bool m_is_time_filtered;
   const std::vector<PulseROI> m_pulse_indices;
   const std::vector<std::pair<int, PulseROI>> m_target_to_pulse_indices;
+  std::shared_ptr<const DirectEventReader> m_direct_reader;
   void loadEventIndex(H5::Group &event_group, std::unique_ptr<std::vector<uint64_t>> &data) const;
 };
 

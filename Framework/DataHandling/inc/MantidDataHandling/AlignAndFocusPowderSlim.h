@@ -105,6 +105,7 @@ const std::string BINMODE("BinningMode");
 const std::string OUTPUT_WKSP("OutputWorkspace");
 const std::string READ_SIZE_FROM_DISK("ReadSizeFromDisk");
 const std::string EVENTS_PER_THREAD("EventsPerThread");
+const std::string EVENT_READ_MODE("EventReadMode");
 const std::string ALLOW_LOGS("LogAllowList");
 const std::string BLOCK_LOGS("LogBlockList");
 const std::string BANK_NUMBER("BankNumber");
