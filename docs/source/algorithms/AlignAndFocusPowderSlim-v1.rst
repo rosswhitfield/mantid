@@ -53,6 +53,11 @@ gives identical output.
 Only uncompressed, chunked event columns of the expected types are read directly, which is what raw SNS event files
 contain. Any other column is read through HDF5 in every mode.
 
+The direct modes read event data on 32 threads and chunk-index nodes on 64 more. Both can be changed without rebuilding
+by setting ``AlignAndFocusPowderSlim.DataReadThreads`` and ``AlignAndFocusPowderSlim.IndexReadThreads`` in the Mantid
+properties. The index threads matter on network file systems: index reads are small and wait on the network, and they
+must keep ahead of the data reads. The algorithm logs, at information level, how long the reads waited for them.
+
 Usage
 -----
 

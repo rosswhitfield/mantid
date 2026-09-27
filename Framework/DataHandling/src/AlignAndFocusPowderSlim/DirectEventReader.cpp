@@ -504,7 +504,8 @@ std::vector<SpanRead> planSpans(std::vector<ByteRun> runs, uint64_t block, uint6
 // DirectEventReader
 
 DirectEventReader::DirectEventReader(const std::string &filename, H5::H5File &file,
-                                     const std::vector<std::string> &bankEntryNames, size_t numThreads)
+                                     const std::vector<std::string> &bankEntryNames, size_t numThreads,
+                                     size_t numIndexThreads)
     : m_reader(std::make_unique<ParallelFileReader>(filename, numThreads)), m_blockSize(fileSystemBlockSize(filename)) {
   std::vector<IndexJob> jobs;
   std::vector<uint64_t> roots;
@@ -595,7 +596,7 @@ DirectEventReader::DirectEventReader(const std::string &filename, H5::H5File &fi
   std::sort(pending.begin(), pending.end(),
             [](const Pending &left, const Pending &right) { return left.address < right.address; });
   m_numLeavesQueued = pending.size();
-  m_indexReader = std::make_unique<ParallelFileReader>(filename, numThreads);
+  m_indexReader = std::make_unique<ParallelFileReader>(filename, numIndexThreads);
   const auto queued = std::chrono::steady_clock::now();
   std::vector<ParallelFileReader::Task> tasks;
   tasks.reserve(pending.size());

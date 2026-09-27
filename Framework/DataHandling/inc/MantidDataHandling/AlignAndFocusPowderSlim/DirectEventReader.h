@@ -133,8 +133,11 @@ MANTID_DATAHANDLING_DLL std::vector<SpanRead> planSpans(std::vector<ByteRun> run
  */
 class MANTID_DATAHANDLING_DLL DirectEventReader {
 public:
+  /// @param numThreads threads reading event data
+  /// @param numIndexThreads threads reading index leaves in the background. Leaf reads are small and bound by
+  /// latency, which grows while data reads load the link, so they need many in flight to stay ahead of the data.
   DirectEventReader(const std::string &filename, H5::H5File &file, const std::vector<std::string> &bankEntryNames,
-                    size_t numThreads = 32);
+                    size_t numThreads = 32, size_t numIndexThreads = 64);
   /// Stops reading index leaves that are still queued
   ~DirectEventReader();
   DirectEventReader(const DirectEventReader &) = delete;

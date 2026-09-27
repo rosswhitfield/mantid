@@ -32,6 +32,7 @@
 #include "MantidKernel/ArrayProperty.h"
 #include "MantidKernel/BoundedValidator.h"
 #include "MantidKernel/CompositeValidator.h"
+#include "MantidKernel/ConfigService.h"
 #include "MantidKernel/EnumeratedString.h"
 #include "MantidKernel/EnumeratedStringProperty.h"
 #include "MantidKernel/ListValidator.h"
@@ -527,8 +528,23 @@ void AlignAndFocusPowderSlim::exec() {
 
   // one direct reader for every loader: it locates the chunks of every bank's event columns up front
   const std::string readMode = getProperty(PropertyNames::EVENT_READ_MODE);
+  // Only banks with detectors in the instrument are processed; every mode skips the others, so the direct reader does
+  // not locate their chunks either.
+  std::vector<std::string> directBanks;
+  for (size_t bankIndex = 0; bankIndex < bankEntryNames.size(); ++bankIndex) {
+    const auto detids = bank_detids.find(bankIndex);
+    if (detids != bank_detids.end() && !detids->second.empty())
+      directBanks.push_back(bankEntryNames[bankIndex]);
+  }
   if (readMode != READ_HDF5) {
-    directReader = std::make_shared<DirectEventReader>(filename, h5file, bankEntryNames);
+    // threads for data and for index leaves can be tuned without rebuilding, from the Mantid properties
+    auto &config = Kernel::ConfigService::Instance();
+    const auto dataThreads = config.getValue<int>("AlignAndFocusPowderSlim.DataReadThreads").value_or(32);
+    const auto indexThreads = config.getValue<int>("AlignAndFocusPowderSlim.IndexReadThreads").value_or(64);
+    directReader = std::make_shared<DirectEventReader>(filename, h5file, directBanks,
+                                                       static_cast<size_t>(std::max(dataThreads, 1)),
+                                                       static_cast<size_t>(std::max(indexThreads, 1)));
+    g_log.information() << "Reading with " << dataThreads << " data and " << indexThreads << " index threads\n";
     g_log.information() << "Reading " << directReader->numDirectColumns() << " of "
                         << directReader->numColumnsExamined()
                         << " event columns directly; read the upper levels of their chunk indexes, "
@@ -546,7 +562,7 @@ void AlignAndFocusPowderSlim::exec() {
     if (directReader)
       loader->setDirectReader(directReader);
 
-    if (readMode == READ_DIRECT_FILE_ORDER && ProcessFileOrderTask::canProcess(*directReader, bankEntryNames)) {
+    if (readMode == READ_DIRECT_FILE_ORDER && ProcessFileOrderTask::canProcess(*directReader, directBanks)) {
       ProcessFileOrderTask task(bankEntryNames, h5file, loader, directReader, processingData, calibFactory,
                                 static_cast<size_t>(DISK_CHUNK), static_cast<size_t>(GRAINSIZE_EVENTS));
       API::Progress progress(this, .17, .9, std::max<size_t>(task.numWaves(), 1));
