@@ -2,6 +2,7 @@
 name = "mantid"
 authors = ["Pete Peterson <petersonpf@ornl.gov>"]
 channels = [
+  "ross.whitfield",
   "conda-forge",
   "neutrons",
   "mantid",
