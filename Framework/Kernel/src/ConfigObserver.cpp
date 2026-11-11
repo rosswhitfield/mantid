@@ -23,7 +23,7 @@ ConfigObserver::ConfigObserver() : m_valueChangeListener(*this, &ConfigObserver:
  *
  * @param other The observer to copy.
  */
-ConfigObserver::ConfigObserver([[maybe_unused]] const ConfigObserver &other)
+ConfigObserver::ConfigObserver(const ConfigObserver & /*other*/)
     : m_valueChangeListener(*this, &ConfigObserver::notifyValueChanged) {
   ConfigService::Instance().addObserver(m_valueChangeListener);
 }
@@ -38,7 +38,7 @@ ConfigObserver::ConfigObserver([[maybe_unused]] const ConfigObserver &other)
  *
  * @param other The observer to copy.
  */
-ConfigObserver &ConfigObserver::operator=([[maybe_unused]] const ConfigObserver &other) { return *this; }
+ConfigObserver &ConfigObserver::operator=(const ConfigObserver & /*other*/) { return *this; }
 
 ConfigObserver::~ConfigObserver() noexcept { ConfigService::Instance().removeObserver(m_valueChangeListener); }
 

@@ -491,8 +491,7 @@ NXstatus NX5close(NXhandle *fid) {
 
 /*------------------------------------------------------------------------*/
 
-herr_t attr_check([[maybe_unused]] hid_t loc_id, const char *member_name, [[maybe_unused]] const H5A_info_t *unused,
-                  [[maybe_unused]] void *opdata) {
+herr_t attr_check(hid_t /*loc_id*/, const char *member_name, const H5A_info_t * /*unused*/, void * /*opdata*/) {
   char attr_name[8 + 1]; /* need to leave space for \0 as well */
 
   strcpy(attr_name, "NX_class");
@@ -763,7 +762,7 @@ NXstatus NX5getdataID(NXhandle fid, NXlink *sRes) {
 
 /* Operator function. */
 
-herr_t nxgroup_info(hid_t loc_id, const char *name, [[maybe_unused]] const H5L_info_t *statbuf, void *op_data) {
+herr_t nxgroup_info(hid_t loc_id, const char *name, const H5L_info_t * /*statbuf*/, void *op_data) {
   pinfo self = static_cast<pinfo>(op_data);
   H5O_info1_t object_info;
   // TODO use new version of method rather than v2
@@ -789,7 +788,7 @@ herr_t nxgroup_info(hid_t loc_id, const char *name, [[maybe_unused]] const H5L_i
 
 /* Operator function. */
 
-herr_t group_info(hid_t loc_id, const char *name, [[maybe_unused]] const H5L_info_t *statbuf, void *opdata) {
+herr_t group_info(hid_t loc_id, const char *name, const H5L_info_t * /*statbuf*/, void *opdata) {
   int iNX = *(static_cast<int *>(opdata));
   H5O_info1_t object_info;
   // TODO use new version of method rather than v2
@@ -1201,8 +1200,7 @@ NXstatus NX5getinfo64(NXhandle fid, int *rank, int64_t dimension[], NXnumtype *i
 
 /* Operator function. */
 
-herr_t attr_info([[maybe_unused]] hid_t loc_id, const char *name, [[maybe_unused]] const H5A_info_t *unused,
-                 void *opdata) {
+herr_t attr_info(hid_t /*loc_id*/, const char *name, const H5A_info_t * /*unused*/, void *opdata) {
   *(static_cast<char **>(opdata)) = strdup(name);
 
   return 1;

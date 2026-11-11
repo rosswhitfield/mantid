@@ -135,7 +135,7 @@ void Property::setRemember(bool remember) { m_remember = remember; }
  * @param maxLength :: The Max length of the returned string
  * @param collapseLists :: Whether to collapse 1,2,3 into 1-3
  */
-std::string Property::valueAsPrettyStr(const size_t maxLength, [[maybe_unused]] const bool collapseLists) const {
+std::string Property::valueAsPrettyStr(const size_t maxLength, const bool /*collapseLists*/) const {
   return Strings::shorten(value(), maxLength);
 }
 

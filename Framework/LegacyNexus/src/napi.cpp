@@ -201,7 +201,7 @@ HDF-5 cache size special stuff
 long nx_cacheSize = 1024000; /* 1MB, HDF-5 default */
 
 /*-------------------------------------------------------------------------*/
-static void NXNXNoReport([[maybe_unused]] void *pData, [[maybe_unused]] const char *string) {
+static void NXNXNoReport(void * /*pData*/, const char * /*string*/) {
   // do nothing
 }
 
@@ -215,7 +215,7 @@ static THREAD_LOCAL void *NXEHpTData = NULL;
 static THREAD_LOCAL ErrFunc NXEHIReportTError = NULL;
 #endif
 
-void NXIReportError([[maybe_unused]] void *pData, const char *string) {
+void NXIReportError(void * /*pData*/, const char *string) {
   fprintf(
       stderr,
       "Your application uses NXIReportError, but its first parameter is ignored now - you should use NXReportError.");

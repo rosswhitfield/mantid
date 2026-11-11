@@ -202,7 +202,7 @@ void Torus::setNorm(const Kernel::V3D &A)
   }
 }
 
-Kernel::V3D Torus::surfaceNormal([[maybe_unused]] const Kernel::V3D &Pt) const
+Kernel::V3D Torus::surfaceNormal(const Kernel::V3D & /*Pt*/) const
 /**
   Get the normal at a point
   @param Pt :: The Point of interest
@@ -232,7 +232,7 @@ double Torus::distance(const Kernel::V3D &Pt) const
   return Px.norm();
 }
 
-int Torus::side([[maybe_unused]] const Kernel::V3D &R) const
+int Torus::side(const Kernel::V3D & /*R*/) const
 
 /**
   Calculate if the point R is within
@@ -248,7 +248,7 @@ int Torus::side([[maybe_unused]] const Kernel::V3D &R) const
   return -1;
 }
 
-bool Torus::onSurface([[maybe_unused]] const Kernel::V3D &R) const {
+bool Torus::onSurface(const Kernel::V3D & /*R*/) const {
   /**
      Calculate if the point R is on
      the cone (Note: have to be careful here
@@ -296,9 +296,8 @@ void Torus::write(std::ostream &OX) const
  *  @param ymin :: the Y min value
  *  @param zmin :: the Z min value
  */
-void Torus::getBoundingBox([[maybe_unused]] double &xmax, [[maybe_unused]] double &ymax, [[maybe_unused]] double &zmax,
-                           [[maybe_unused]] double &xmin, [[maybe_unused]] double &ymin,
-                           [[maybe_unused]] double &zmin) {
+void Torus::getBoundingBox(double & /*xmax*/, double & /*ymax*/, double & /*zmax*/, double & /*xmin*/,
+                           double & /*ymin*/, double & /*zmin*/) {
   /// TODO:
   Kernel::Logger log("Torus");
   log.warning("Torus::getBoundingBox is not implemented.");

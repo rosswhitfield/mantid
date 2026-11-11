@@ -102,7 +102,7 @@ void *DllOpen::openDll(const std::string &filepath) {
 /* Closes an open .so file.
  * @param handle :: A handle to the open library.
  **/
-void DllOpen::closeDll([[maybe_unused]] void *handle) {
+void DllOpen::closeDll(void * /*handle*/) {
   // A bug in glibc prevents us from calling this.
   // dlclose(handle);
 }
